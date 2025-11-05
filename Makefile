@@ -78,6 +78,10 @@ remove_conda_env:
 run_streamlit:
 	streamlit run usecases/agenticrag/app.py
 
+# Target to run the Streamlit app locally
+run_app:
+	streamlit run usecases/agenticrag/app_maf.py
+
 run_pylint:
 	@echo "Running linter"
 	find . -type f -name "*.py" ! -path "./tests/*" | xargs pylint -disable=logging-fstring-interpolation > utils/pylint_report/pylint_report.txt
