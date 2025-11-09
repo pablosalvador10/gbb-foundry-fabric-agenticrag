@@ -6,22 +6,22 @@ description: "Realtime assistant with web search, file search, weather, and time
 
 # Azure AI Foundry Configuration
 azure_ai_foundry:
-  endpoint: "${AZURE_AI_PROJECT_ENDPOINT}"
-  model_deployment: "${AZURE_AI_MODEL_DEPLOYMENT_NAME}"
+  endpoint_env: "AZURE_AI_PROJECT_ENDPOINT"
+  model_deployment_env: "AZURE_AI_MODEL_DEPLOYMENT_NAME"
   # Agent ID for reusing existing agent (optional - will create new if not provided)
-  agent_id: "${REALTIME_ASSISTANT_AGENT_ID}"  # Set this in .env to reuse existing agent
+  agent_id_env: "REALTIME_ASSISTANT_AGENT_ID"  # Set this in .env to reuse existing agent
 
 # Bing Search Configuration
 bing_search:
   enabled: true
-  connection_id: "${BING_CONNECTION_ID}"  # From Azure AI Foundry connected resources
+  connection_id_env: "BING_CONNECTION_ID"  # From Azure AI Foundry connected resources
   name: "Bing Grounding Search"
   description: "Search the web for current information using Bing"
 
 # File Search Configuration
 file_search:
   enabled: true
-  vector_store_id: "${FILE_SEARCH_VECTOR_STORE_ID}"  # Optional - can be created dynamically
+  vector_store_id_env: "FILE_SEARCH_VECTOR_STORE_ID"  # Optional - can be created dynamically
 
 # Agent Instructions
 instructions: |

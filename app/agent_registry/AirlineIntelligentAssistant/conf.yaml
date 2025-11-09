@@ -6,9 +6,9 @@ description: "Intelligent airline operations assistant that coordinates operatio
 
 # Azure OpenAI Configuration
 azure_openai:
-  endpoint: "${AZURE_OPENAI_API_ENDPOINT}"
-  api_key: "${AZURE_OPENAI_API_KEY}"
-  deployment: "${AZURE_OPENAI_DEPLOYMENT_NAME}"
+  endpoint_env: "AZURE_OPENAI_API_ENDPOINT"
+  api_key_env: "AZURE_OPENAI_API_KEY"
+  deployment_env: "AZURE_OPENAI_DEPLOYMENT_NAME"
 
 # Agent Instructions
 instructions: |

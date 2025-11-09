@@ -1,12 +1,12 @@
 """
-Multi-Agent Streamlit Application for R&D Intelligence.
+Airline Operations Assistant - Streamlit Application.
 
-This module serves as the main entry point that orchestrates the Streamlit UI
-and intelligent agent routing for the enterprise multi-agent system.
+This module serves as the main entry point for the Streamlit UI, providing
+a clean interface to the AirlineIntelligentAssistant multi-agent system.
 """
 
 import asyncio
-from typing import Any, Dict, Tuple
+from typing import Any
 
 import streamlit as st
 
@@ -23,17 +23,9 @@ from settings import (
     CHAT_INPUT_PLACEHOLDER,
     validate_configuration,
 )
-from agents.foundry.foundryagents import (
-    initialize_foundry_services,
-    get_foundry_agent,
-    is_foundry_agent_available,
+from app.agent_registry.AirlineIntelligentAssistant.main import (
+    setup_airline_intelligent_assistant,
 )
-from app.agents.azure_openai.dataagents import (
-    initialize_fabric_services,
-    get_unified_fabric_agent,
-    is_unified_fabric_agent_available,
-)
-from agents.azure_openai.intelligent_orchestrator import get_orchestrator
 from utils.ml_logging import get_logger
 
 logger = get_logger("app.main")
@@ -50,7 +42,22 @@ def setup_environment() -> None:
     :raises: SystemExit if required environment variables are missing
     """
     try:
-        logger.info("Setting up environment and initializing session state")
+        logger.info("🔧 Setting up environment and initializing session state")
+
+        if not validate_configuration():
+            logger.error("Missing required environment variables")
+            st.error(
+                "Missing required environment variables. Please check your .env file."
+            )
+            st.stop()
+
+        # Initialize Azure authentication once for the entire session
+        if "azure_credential" not in st.session_state:
+            from azure.identity import InteractiveBrowserCredential
+            logger.info("🔐 Initializing Azure authentication (browser login)...")
+            logger.info("📢 A browser window will open for authentication...")
+            st.session_state.azure_credential = InteractiveBrowserCredential()
+            logger.info("✅ Azure authentication initialized successfully")
 
         if not validate_configuration():
             logger.error("Missing required environment variables")
@@ -63,129 +70,100 @@ def setup_environment() -> None:
             st.session_state.chat_history = []
             logger.info("Initialized chat_history in session state")
 
+        if "conversation_thread" not in st.session_state:
+            st.session_state.conversation_thread = None
+            logger.info("Initialized conversation_thread in session state")
+
     except Exception as e:
         logger.error(f"Error during environment setup: {str(e)}")
         st.error(f"Environment setup failed: {str(e)}")
         st.stop()
 
 
-def setup_agents() -> None:
+async def setup_agent() -> None:
     """
-    Initialize all AI agents for the multi-agent system.
+    Initialize the Airline Intelligent Assistant agent.
 
-    This function orchestrates the initialization of all specialized AI agents
-    including Fabric Data Agents, Foundry agents, and the intelligent orchestrator
-    for semantic routing capabilities.
+    This function creates the main orchestrator agent and stores it in session state.
+    The agent is initialized only once per session and reused across all queries.
 
     Components initialized:
-    - Fabric Data Agent clients for structured data queries (agent_registry.azure_openai.fabric)
-    - Foundry agent for FedEx ETD expertise (agent_registry.foundry.foundryagents)
-    - Unified Fabric agent with multiple data source tools (agent_registry.azure_openai.fabric)
-    - Intelligent orchestrator for semantic routing (agent_registry.azure_openai.intelligent_orchestrator)
+    - AirlineIntelligentAssistant: Main orchestrator with two sub-agents as tools
+      - AirlineOpsContext: For operational data from Microsoft Fabric
+      - RealtimeAssistant: For web search, weather, time, and file search
 
     :return: None
     :raises: Exception if agent initialization fails
     """
-    try:
-        logger.info("Initializing all agent services")
-        initialize_fabric_services()
-        initialize_foundry_services()
+    if "agent" not in st.session_state:
+        try:
+            logger.info("🤖 Initializing Airline Intelligent Assistant...")
+            
+            # Pass the cached credential to the agent modules
+            from app.agent_registry.AirlineOpsContext import main as ops_context_module
+            ops_context_module.set_azure_credential(st.session_state.azure_credential)
+            
+            agent = await setup_airline_intelligent_assistant()
+            st.session_state.agent = agent
+            logger.info("✅ Airline Intelligent Assistant initialized successfully")
+        except Exception as e:
+            logger.error(f"❌ Error during agent setup: {str(e)}")
+            raise
 
-        orchestrator = get_orchestrator()
-        logger.info("All agents and orchestrator setup completed successfully")
+
+async def process_query(query: str) -> str:
+    """
+    Process a user query with the Airline Intelligent Assistant.
+
+    This function handles:
+    1. Thread creation for first query (conversation memory)
+    2. Query execution with the agent
+    3. Response extraction
+
+    Args:
+        query: User's question or request
+
+    Returns:
+        Agent's response text
+
+    :raises: Exception if query processing fails
+    """
+    logger.info("=" * 100)
+    logger.info("🚀 STARTING QUERY PROCESSING")
+    logger.info(f"💬 User Query: {query}")
+    logger.info("=" * 100)
+
+    try:
+        # Get agent from session state
+        agent = st.session_state.get("agent")
+        if not agent:
+            raise RuntimeError("Agent not initialized. Please refresh the page.")
+
+        # Get or create conversation thread for memory persistence
+        if st.session_state.conversation_thread is None:
+            logger.info("🆕 Creating new conversation thread for session")
+            st.session_state.conversation_thread = agent.get_new_thread()
+        else:
+            logger.info("♻️  Using existing conversation thread (memory enabled)")
+
+        thread = st.session_state.conversation_thread
+
+        # Execute query with agent using persistent thread
+        logger.info("🤖 EXECUTING WITH: AirlineIntelligentAssistant (Main Orchestrator)")
+        logger.info("📡 Available sub-agents: AirlineOpsContext, RealtimeAssistant")
+        result = await agent.run(query, thread=thread)
+
+        # Extract response text
+        response_text = result.text if hasattr(result, "text") else str(result)
+
+        logger.info("✅ Query processed successfully")
+        logger.info("=" * 100)
+        return response_text
 
     except Exception as e:
-        logger.error(f"Error during agent setup: {str(e)}")
+        logger.error(f"❌ Error processing query: {str(e)}")
+        logger.info("=" * 100)
         raise
-
-
-async def get_intelligent_routing_decision(query: str) -> Dict[str, str]:
-    """
-    Use intelligent semantic routing to determine the optimal agent.
-
-    Args:
-        query: User's question or request
-
-    Returns:
-        Dictionary containing agent selection details from intelligent analysis
-    """
-    orchestrator = get_orchestrator()
-
-    # Get the routing decision from the intelligent orchestrator
-    agent_name, reasoning, routing_info = await orchestrator.route_query(query)
-
-    return routing_info
-
-
-async def production_agent_system(query: str) -> Tuple[str, Dict[str, str]]:
-    """
-    Production-ready multi-agent system with intelligent semantic routing.
-
-    This is the core function that:
-    1. Uses AI to analyze the user query semantically
-    2. Routes the query to the most appropriate specialized agent
-    3. Returns the response with routing decision details
-
-    Args:
-        query: User's question or request
-
-    Returns:
-        Tuple containing:
-        - Agent's response text
-        - Routing decision dictionary with metadata
-    """
-    logger.info(f"Processing query: {query}")
-
-    try:
-        # Get the agents from their respective registry locations
-        foundry_agent = (
-            get_foundry_agent() if is_foundry_agent_available() else None
-        )  # agent_registry.foundry.foundryagents
-        fabric_agent = (
-            get_unified_fabric_agent() if is_unified_fabric_agent_available() else None
-        )  # agent_registry.azure_openai.fabric
-
-        # Check if we have the required agents
-        if not foundry_agent:
-            logger.warning(
-                "Foundry agent not available (agent_registry.foundry.foundryagents)"
-            )
-        if not fabric_agent:
-            logger.warning(
-                "Fabric agent not available (agent_registry.azure_openai.fabric)"
-            )
-
-        if not foundry_agent and not fabric_agent:
-            return "❌ No agents available. Please check your configuration.", {
-                "agent": "none",
-                "name": "No Agent",
-                "icon": "❌",
-                "purpose": "Error - No agents available",
-                "reasoning": "System configuration error",
-                "confidence": "error",
-            }
-
-        # Use the intelligent orchestrator for routing and execution
-        orchestrator = get_orchestrator()
-        orchestrator.set_agents(foundry_agent, fabric_agent)
-
-        response_text, routing_decision = await orchestrator.execute_query(query)
-
-        logger.info(
-            f"Intelligent routing: {routing_decision['name']} - {routing_decision['reasoning']}"
-        )
-        return response_text, routing_decision
-
-    except Exception as e:
-        logger.error(f"Error in intelligent agent system: {str(e)}")
-        return f"❌ Error in intelligent routing: {str(e)}", {
-            "agent": "error",
-            "name": "System Error",
-            "icon": "❌",
-            "purpose": "Error handling",
-            "reasoning": f"System error: {str(e)}",
-            "confidence": "error",
-        }
 
 
 def render_chat_history(chat_container: Any) -> None:
@@ -261,23 +239,25 @@ def render_ui_header() -> None:
 
 def main() -> None:
     """
-    Main entry point for the R&D Intelligent Multi-Agent Assistant.
+    Main entry point for the Airline Operations Assistant.
 
     Orchestrates the entire application flow:
-    - Initializes environment and agents
+    - Initializes environment and agent
     - Renders the user interface
-    - Handles user queries with intelligent agent routing
+    - Handles user queries with conversation memory
     - Displays results and maintains conversation history
     """
     try:
-        logger.info("Starting R+D Intelligent Multi-Agent Assistant app.")
+        logger.info("Starting Airline Operations Assistant app")
 
         # Set page config first (must be called before other Streamlit commands)
         st.set_page_config(page_title=PAGE_TITLE)
 
-        # Initialize environment and agents - CRITICAL: This must happen early
+        # Initialize environment - CRITICAL: This must happen early
         setup_environment()
-        setup_agents()
+
+        # Initialize agent asynchronously (only once per session)
+        asyncio.run(setup_agent())
 
         # Render UI header
         render_ui_header()
@@ -299,39 +279,11 @@ def main() -> None:
                 with st.chat_message("user", avatar="🧑‍💻"):
                     st.markdown(user_input, unsafe_allow_html=True)
 
-                # Show processing status
-                with st.status(
-                    "🧠 Analyzing query with AI orchestrator...", expanded=True
-                ) as status:
-                    st.write("**Intelligent Semantic Analysis in Progress**")
-                    st.write("• Analyzing query intent and context...")
-                    st.write("• Determining optimal specialized agent...")
-                    status.update(label="✅ AI analysis complete", state="complete")
-
-                # Process with intelligent agent system
-                with st.spinner("Processing with intelligent agent orchestrator..."):
+                # Process with agent
+                with st.spinner("Processing with Airline Intelligent Assistant..."):
                     try:
-                        # Use intelligent production agent system
-                        result, routing_decision = asyncio.run(
-                            production_agent_system(user_input)
-                        )
-
-                        # Create intelligent routing summary for chat history
-                        agent_selection_msg = f"""
-**{routing_decision.get('icon', '🤖')} AI Orchestrator Decision: {routing_decision.get('name', 'Unknown Agent')}**
-- **Purpose**: {routing_decision.get('purpose', 'Not specified')}  
-- **AI Reasoning**: {routing_decision.get('reasoning', 'Semantic analysis')}
-- **Confidence**: {routing_decision.get('confidence', 'Unknown')}
-                        """
-
-                        # Add agent selection info to chat history
-                        st.session_state.chat_history.append(
-                            {
-                                "role": "info",
-                                "content": agent_selection_msg.strip(),
-                                "avatar": "🎯",
-                            }
-                        )
+                        # Execute query with agent (with conversation memory)
+                        result = asyncio.run(process_query(user_input))
 
                         # Add assistant response to chat history
                         st.session_state.chat_history.append(

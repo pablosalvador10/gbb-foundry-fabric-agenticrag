@@ -10,12 +10,7 @@ Creates an Azure AI Foundry agent with multiple capabilities:
 import os
 from typing import Optional
 
-from agent_framework import (
-    ChatAgent,
-    HostedWebSearchTool,
-    HostedFileSearchTool,
-    HostedVectorStoreContent,
-)
+from agent_framework import ChatAgent
 from agent_framework.azure import AzureAIAgentClient
 from azure.ai.projects.aio import AIProjectClient
 from azure.identity.aio import AzureCliCredential
@@ -44,7 +39,7 @@ async def setup_realtime_assistant() -> ChatAgent:
     try:
         # Load dynamic configuration
         logger.info("Loading Realtime Assistant configuration...")
-        config = load_agent_config("REALTIME_ASSISTANT_CONFIG")
+        config = load_agent_config("REALTIME_ASSISTANT")
 
         # Extract configuration values
         name = config["name"]
@@ -62,60 +57,67 @@ async def setup_realtime_assistant() -> ChatAgent:
         credential = AzureCliCredential()
         project_client = AIProjectClient(endpoint=endpoint, credential=credential)
 
-        # Build tools list
-        tools = []
+        # Build tools list for Azure AI agent creation
+        azure_tools = []
 
-        # 1. Add Bing Search if enabled
-        if config.get("bing_search", {}).get("enabled", False):
-            logger.info("Adding Bing Grounding Search tool...")
-            bing_connection_id = config["bing_search"].get("connection_id")
+        # TODO: Add Bing Search and File Search tools
+        # These require proper Azure AI Foundry tool wrapper implementation
+        
+        # # 1. Add Bing Search if enabled
+        # if config.get("bing_search", {}).get("enabled", False):
+        #     logger.info("Adding Bing Grounding Search tool...")
+        #     bing_connection_id = config["bing_search"].get("connection_id")
 
-            if bing_connection_id:
-                # Set environment variable for HostedWebSearchTool
-                os.environ["BING_CONNECTION_ID"] = bing_connection_id
+        #     if bing_connection_id:
+        #         # For Azure AI Foundry, we need to use the tool definition format
+        #         bing_tool = {
+        #             "type": "bing_grounding",
+        #             "bing_grounding": {
+        #                 "connection_id": bing_connection_id
+        #             }
+        #         }
+        #         azure_tools.append(bing_tool)
+        #         logger.info("Bing Search tool added successfully")
+        #     else:
+        #         logger.warning("Bing search enabled but no connection_id provided")
 
-                bing_tool = HostedWebSearchTool(
-                    name=config["bing_search"].get("name", "Bing Grounding Search"),
-                    description=config["bing_search"].get(
-                        "description", "Search the web for current information"
-                    ),
-                )
-                tools.append(bing_tool)
-                logger.info("Bing Search tool added successfully")
-            else:
-                logger.warning("Bing search enabled but no connection_id provided")
+        # # 2. Add File Search if enabled
+        # if config.get("file_search", {}).get("enabled", False):
+        #     logger.info("Adding File Search tool...")
+        #     vector_store_id = config["file_search"].get("vector_store_id")
 
-        # 2. Add File Search if enabled
-        if config.get("file_search", {}).get("enabled", False):
-            logger.info("Adding File Search tool...")
-            vector_store_id = config["file_search"].get("vector_store_id")
+        #     if vector_store_id:
+        #         # For Azure AI Foundry, use the file search tool definition format
+        #         file_search_tool = {
+        #             "type": "file_search",
+        #             "file_search": {
+        #                 "vector_store_ids": [vector_store_id]
+        #             }
+        #         }
+        #         azure_tools.append(file_search_tool)
+        #         logger.info(
+        #             f"File Search tool added with vector store: {vector_store_id}"
+        #         )
+        #     else:
+        #         logger.warning("File search enabled but no vector_store_id provided")
 
-            if vector_store_id:
-                file_search_tool = HostedFileSearchTool(
-                    inputs=[HostedVectorStoreContent(vector_store_id=vector_store_id)]
-                )
-                tools.append(file_search_tool)
-                logger.info(
-                    f"File Search tool added with vector store: {vector_store_id}"
-                )
-            else:
-                logger.warning("File search enabled but no vector_store_id provided")
+        # # 3. Add custom function tools
+        # TODO: Implement proper function tool wrapping for Azure AI Foundry
+        # function_tools = []
+        # for tool_name in config.get("tools", []):
+        #     if tool_name == "get_weather":
+        #         function_tools.append(get_weather)
+        #         logger.info("Added get_weather function tool")
+        #     elif tool_name == "get_time":
+        #         function_tools.append(get_time)
+        #         logger.info("Added get_time function tool")
+        #     else:
+        #         logger.warning(f"Unknown tool '{tool_name}' in configuration")
 
-        # 3. Add custom function tools
-        function_tools = []
-        for tool_name in config.get("tools", []):
-            if tool_name == "get_weather":
-                function_tools.append(get_weather)
-                logger.info("Added get_weather function tool")
-            elif tool_name == "get_time":
-                function_tools.append(get_time)
-                logger.info("Added get_time function tool")
-            else:
-                logger.warning(f"Unknown tool '{tool_name}' in configuration")
+        # Combine all tools
+        all_tools = azure_tools  # + function_tools when implemented
 
-        tools.extend(function_tools)
-
-        logger.info(f"Total tools configured: {len(tools)}")
+        logger.info(f"Total tools configured: {len(all_tools)} (Bing/File Search/Functions temporarily disabled)")
 
         # Create or reuse agent
         if agent_id:
@@ -131,7 +133,7 @@ async def setup_realtime_assistant() -> ChatAgent:
                 model=model_deployment,
                 name=name,
                 instructions=instructions,
-                tools=tools,  # All tools passed to remote agent
+                tools=all_tools,  # All tools passed to remote agent
             )
             agent_id = azure_ai_agent.id
             logger.info(f"New agent created with ID: {agent_id}")
@@ -149,7 +151,7 @@ async def setup_realtime_assistant() -> ChatAgent:
             name=f"{name}Agent",
             description=description,
             instructions=instructions,
-            tools=tools,  # Tools also in wrapper for consistency
+            tools=all_tools,  # Tools also in wrapper for consistency
         )
 
         logger.info(f"Realtime Assistant agent '{name}' initialized successfully")
@@ -176,7 +178,7 @@ async def delete_realtime_assistant(agent_id: str) -> None:
     :raises: Exception if deletion fails
     """
     try:
-        config = load_agent_config("REALTIME_ASSISTANT_CONFIG")
+        config = load_agent_config("REALTIME_ASSISTANT")
         endpoint = config["azure_ai_foundry"]["endpoint"]
 
         credential = AzureCliCredential()

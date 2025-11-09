@@ -6,10 +6,7 @@ This agent coordinates between operational data retrieval and realtime assistanc
 """
 
 import asyncio
-from agent_framework import ChatAgent
-from agent_framework.azure import AzureOpenAIChatClient
-from azure.identity import AzureCliCredential
-
+from src.agents.azure_openai.main import setup_aoai_agent
 from app.agent_registry.config_loader import load_agent_config
 from app.agent_registry.AirlineOpsContext.main import airline_ops_context_agent
 from app.agent_registry.RealtimeAssistant.main import setup_realtime_assistant
@@ -18,7 +15,7 @@ from utils.ml_logging import get_logger
 logger = get_logger("app.agent_registry.AirlineIntelligentAssistant.main")
 
 
-async def setup_airline_intelligent_assistant() -> ChatAgent:
+async def setup_airline_intelligent_assistant():
     """
     Initialize the Airline Intelligent Assistant main orchestrator.
 
@@ -35,7 +32,7 @@ async def setup_airline_intelligent_assistant() -> ChatAgent:
     try:
         # Load dynamic configuration
         logger.info("Loading Airline Intelligent Assistant configuration...")
-        config = load_agent_config("AIRLINE_INTELLIGENT_ASSISTANT_CONFIG")
+        config = load_agent_config("AIRLINE_INTELLIGENT_ASSISTANT")
 
         # Extract configuration values
         name = config["name"]
@@ -82,11 +79,14 @@ async def setup_airline_intelligent_assistant() -> ChatAgent:
         logger.info("Creating main orchestrator agent...")
 
         # Create main orchestrator with sub-agents as tools
-        credential = AzureCliCredential()
-        main_agent = AzureOpenAIChatClient(credential=credential).create_agent(
+        main_agent = setup_aoai_agent(
             name=name,
-            instructions=instructions,
+            endpoint=endpoint,
+            api_key=api_key,
+            deployment_name=deployment,
             tools=[ops_context_tool, realtime_tool],
+            instructions=instructions,
+            description=description,
         )
 
         logger.info(f"Airline Intelligent Assistant '{name}' initialized successfully")
@@ -104,21 +104,33 @@ async def setup_airline_intelligent_assistant() -> ChatAgent:
 
 # Example usage
 async def main():
-    """Example usage of the Airline Intelligent Assistant."""
+    """
+    Example usage of the Airline Intelligent Assistant with thread persistence.
+    
+    Thread management enables conversation memory across multiple queries,
+    allowing the agent to maintain context and reference previous interactions.
+    """
     agent = await setup_airline_intelligent_assistant()
 
-    # Example queries
+    # Create a persistent thread for the conversation session
+    # This enables the agent to remember context across multiple queries
+    thread = agent.get_new_thread()
+
+    # Example queries - agent maintains context across all queries in the thread
     queries = [
         "What flights are delayed right now at ORD?",
         "What's the weather like in New York?",
         "Show me baggage handling performance for last week",
         "What time is it in UTC?",
+        "Can you summarize what I asked about?",  # Tests memory
     ]
 
+    print("=== Conversation with Persistent Memory ===\n")
     for query in queries:
-        print(f"\nUser: {query}")
-        result = await agent.run(query)
-        print(f"Agent: {result.text}")
+        print(f"User: {query}")
+        # Pass the same thread to maintain conversation context
+        result = await agent.run(query, thread=thread)
+        print(f"Agent: {result.text}\n")
 
 
 if __name__ == "__main__":

@@ -61,19 +61,37 @@ def validate_agent_config(config: Dict[str, Any]) -> bool:
     :return: True if valid, raises exception if invalid
     :raises: ValueError if configuration is invalid
     """
-    required_fields = ["name", "description", "instructions", "azure_openai"]
+    # Base required fields
+    required_fields = ["name", "description", "instructions"]
 
     for field in required_fields:
         if field not in config:
             raise ValueError(f"Missing required field in agent config: {field}")
 
-    # Validate azure_openai section
-    azure_config = config["azure_openai"]
-    required_azure_fields = ["endpoint_env", "api_key_env", "deployment_env"]
+    # Validate either azure_openai OR azure_ai_foundry section exists
+    has_azure_openai = "azure_openai" in config
+    has_azure_foundry = "azure_ai_foundry" in config
+    
+    if not has_azure_openai and not has_azure_foundry:
+        raise ValueError("Agent config must have either 'azure_openai' or 'azure_ai_foundry' section")
 
-    for field in required_azure_fields:
-        if field not in azure_config:
-            raise ValueError(f"Missing required Azure OpenAI field: {field}")
+    # Validate azure_openai section if present
+    if has_azure_openai:
+        azure_config = config["azure_openai"]
+        required_azure_fields = ["endpoint_env", "api_key_env", "deployment_env"]
+
+        for field in required_azure_fields:
+            if field not in azure_config:
+                raise ValueError(f"Missing required Azure OpenAI field: {field}")
+
+    # Validate azure_ai_foundry section if present
+    if has_azure_foundry:
+        foundry_config = config["azure_ai_foundry"]
+        required_foundry_fields = ["endpoint_env", "model_deployment_env"]
+
+        for field in required_foundry_fields:
+            if field not in foundry_config:
+                raise ValueError(f"Missing required Azure AI Foundry field: {field}")
 
     logger.info("Agent configuration validated successfully")
     return True
@@ -82,27 +100,42 @@ def validate_agent_config(config: Dict[str, Any]) -> bool:
 def resolve_env_variables(config: Dict[str, Any]) -> Dict[str, Any]:
     """
     Resolve environment variable references in configuration.
+    
+    Recursively resolves any field with '_env' suffix by reading the environment
+    variable and creating a new field without the suffix.
 
     :param config: Agent configuration with env variable references
     :return: Configuration with resolved values
     """
-    resolved_config = config.copy()
-
-    # Resolve Azure OpenAI environment variables
-    azure_config = resolved_config["azure_openai"]
-    azure_config["endpoint"] = os.getenv(azure_config["endpoint_env"])
-    azure_config["api_key"] = os.getenv(azure_config["api_key_env"])
-    azure_config["deployment"] = os.getenv(azure_config["deployment_env"])
-
-    # Log missing environment variables
-    if not azure_config["endpoint"]:
-        logger.warning(f"Environment variable not set: {azure_config['endpoint_env']}")
-    if not azure_config["api_key"]:
-        logger.warning(f"Environment variable not set: {azure_config['api_key_env']}")
-    if not azure_config["deployment"]:
-        logger.warning(
-            f"Environment variable not set: {azure_config['deployment_env']}"
-        )
+    def resolve_dict(d: Dict[str, Any]) -> Dict[str, Any]:
+        """Recursively resolve _env suffixed fields in a dictionary."""
+        resolved = {}
+        for key, value in d.items():
+            if isinstance(value, dict):
+                # Recursively resolve nested dictionaries
+                resolved[key] = resolve_dict(value)
+            elif key.endswith("_env") and isinstance(value, str):
+                # Resolve environment variable reference
+                env_var_name = value
+                env_value = os.getenv(env_var_name)
+                
+                # Keep the _env field for reference
+                resolved[key] = value
+                
+                # Add resolved field without _env suffix
+                field_name = key[:-4]  # Remove '_env' suffix
+                resolved[field_name] = env_value
+                
+                # Log missing environment variables
+                if not env_value:
+                    logger.warning(f"Environment variable not set: {env_var_name}")
+            else:
+                # Keep other fields as-is
+                resolved[key] = value
+        
+        return resolved
+    
+    resolved_config = resolve_dict(config)
 
     return resolved_config
 
