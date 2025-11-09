@@ -1,100 +1,135 @@
 """
-Foundry Agent Management Module
-Handles Azure AI Foundry agents and project client setup.
+Foundry Agent Management Module.
+
+This module handles Azure AI Foundry agents and project client setup
+for the enterprise multi-agent system.
 """
 
 import streamlit as st
-from azure.ai.projects.aio import AIProjectClient
-from azure.identity.aio import AzureCliCredential
+from typing import Optional
+from azure.ai.projects import AIProjectClient
+from azure.identity import AzureCliCredential
 from agent_framework import ChatAgent
 from agent_framework.azure import AzureAIAgentClient
 
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 
-from app.settings import AZURE_AI_PROJECT_ENDPOINT, FOUNDRY_AGENT_ID, FEDEX_ETD_AGENT_INSTRUCTIONS
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+
+from app.settings import (
+    AZURE_AI_PROJECT_ENDPOINT,
+    FOUNDRY_AGENT_ID,
+    FEDEX_ETD_AGENT_INSTRUCTIONS,
+)
 from utils.ml_logging import get_logger
 
-logger = get_logger()
+logger = get_logger("agent_registry.foundry.foundryagents")
 
 
 def setup_foundry_project_client() -> None:
     """
     Initialize Azure AI Project client for Foundry services.
-    
-    Sets up the foundry_project in session state for later use by Foundry agents.
+
+    This function sets up the foundry_project in session state for later use
+    by Foundry agents, enabling connection to Azure AI Foundry services.
+
+    :return: None
+    :raises: Exception if client initialization fails
     """
-    if 'foundry_project' not in st.session_state:
+    if "foundry_project" not in st.session_state:
         try:
             st.session_state.foundry_project = AIProjectClient(
-                endpoint=AZURE_AI_PROJECT_ENDPOINT, 
-                credential=AzureCliCredential()
+                endpoint=AZURE_AI_PROJECT_ENDPOINT, credential=AzureCliCredential()
             )
-            logger.info("✅ Initialized Foundry project client")
+            logger.info("Foundry project client initialized successfully")
         except Exception as e:
-            logger.error(f"❌ Failed to initialize Foundry project: {e}")
+            logger.error(f"Failed to initialize Foundry project client: {str(e)}")
             st.session_state.foundry_project = None
+            raise
 
 
 def setup_foundry_agent() -> None:
     """
     Initialize the FedEx ETD Foundry agent.
-    
-    Creates a ChatAgent configured to work with Azure AI Foundry services
-    for FedEx Electronic Trade Documents expertise.
+
+    This function creates a ChatAgent configured to work with Azure AI Foundry services
+    for FedEx Electronic Trade Documents expertise and stores it in session state.
+
+    :return: None
+    :raises: Exception if agent creation fails
     """
     if "foundry_agent" not in st.session_state:
         if st.session_state.foundry_project is None:
-            logger.warning("❌ Foundry project not available, skipping Foundry agent")
+            logger.warning("Foundry project not available, skipping Foundry agent")
             st.session_state.foundry_agent = None
         else:
             try:
                 chat_client = AzureAIAgentClient(
-                    project_client=st.session_state.foundry_project, 
-                    agent_id=FOUNDRY_AGENT_ID
+                    project_client=st.session_state.foundry_project,
+                    agent_id=FOUNDRY_AGENT_ID,
                 )
-                
+
                 st.session_state.foundry_agent = ChatAgent(
                     chat_client=chat_client,
-                    name="FedExETDAgent", 
+                    name="FedExETDAgent",
                     description="FedEx Electronic Trade Documents specialist with expertise in international shipping documentation.",
-                    instructions=FEDEX_ETD_AGENT_INSTRUCTIONS
+                    instructions=FEDEX_ETD_AGENT_INSTRUCTIONS,
                 )
-                logger.info("✅ Created FedEx ETD Foundry agent")
+                logger.info("FedEx ETD Foundry agent created successfully")
             except Exception as e:
-                logger.error(f"❌ Failed to create Foundry agent: {e}")
+                logger.error(f"Failed to create Foundry agent: {str(e)}")
                 st.session_state.foundry_agent = None
+                raise
 
 
 def initialize_foundry_services() -> None:
     """
     Initialize all Foundry-related services in the correct order.
-    
-    This function should be called during application startup to ensure
-    all Foundry components are properly configured.
+
+    This function orchestrates the initialization of all Foundry components
+    and should be called during application startup to ensure proper configuration.
+
+    :return: None
+    :raises: Exception if any service initialization fails
     """
-    logger.info("🔧 Initializing Foundry services...")
-    setup_foundry_project_client()
-    setup_foundry_agent()
-    logger.info("✅ Foundry services initialization complete")
-
-
-def get_foundry_agent() -> ChatAgent:
+    try:
+        logger.info("Initializing Foundry services")
+        setup_foundry_project_client()
+        setup_foundry_agent()
+        logger.info("Foundry services initialization completed successfully")
+    except Exception as e:
+        logger.error(f"Foundry services initialization failed: {str(e)}")
+        raise
+def get_foundry_agent() -> Optional[ChatAgent]:
     """
     Get the initialized Foundry agent from session state.
-    
-    Returns:
-        ChatAgent: The FedEx ETD Foundry agent, or None if not available
+
+    This function retrieves the FedEx ETD Foundry agent instance from the
+    Streamlit session state if available.
+
+    :return: The FedEx ETD Foundry agent instance, or None if not available
+    :raises: None - function handles missing agent gracefully
     """
-    return st.session_state.get('foundry_agent')
+    try:
+        return st.session_state.get("foundry_agent")
+    except Exception as e:
+        logger.error(f"Error retrieving Foundry agent: {str(e)}")
+        return None
 
 
 def is_foundry_agent_available() -> bool:
     """
     Check if the Foundry agent is properly initialized and available.
-    
-    Returns:
-        bool: True if the agent is available, False otherwise
+
+    This function verifies the availability of the Foundry agent in session state
+    to ensure it can be used for processing requests.
+
+    :return: True if the agent is available, False otherwise
+    :raises: None - function handles errors gracefully
     """
-    return st.session_state.get('foundry_agent') is not None
+    try:
+        return st.session_state.get("foundry_agent") is not None
+    except Exception as e:
+        logger.error(f"Error checking Foundry agent availability: {str(e)}")
+        return False

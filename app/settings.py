@@ -1,23 +1,31 @@
 """
-Configuration and Environment Settings for Multi-Agent Streamlit Application
-Centralizes all environment variables, constants, and configuration parameters.
+Configuration and Environment Settings for Multi-Agent Streamlit Application.
+
+This module centralizes all environment variables, constants, and configuration parameters
+for the enterprise multi-agent system.
 """
 
 import os
-from typing import Dict
+from typing import Dict, List
+from utils.ml_logging import get_logger
+
+logger = get_logger("app.settings")
 
 try:
     import dotenv
-    # Load environment variables
+
     dotenv.load_dotenv(".env", override=True)
+    logger.info("Environment variables loaded from .env file")
 except ImportError:
-    print("Warning: python-dotenv not available, using system environment variables only")
+    logger.warning(
+        "python-dotenv not available, using system environment variables only"
+    )
 
 # ---- FABRIC AGENT ENDPOINTS ----
 FABRIC_ENDPOINTS: Dict[str, str] = {
     "product_discovery": "https://msitapi.fabric.microsoft.com/v1/workspaces/409e30ce-b2ad-4c80-a54d-d645227322e4/aiskills/672fba68-a7d0-4c85-99e9-9ed6fe8ef1d1/aiassistant/openai",
-    "sales_data": "https://msitapi.fabric.microsoft.com/v1/workspaces/409e30ce-b2ad-4c80-a54d-d645227322e4/aiskills/360ef9b6-c087-4e72-ab7c-f157007cda3a/aiassistant/openai", 
-    "airport_info": "https://msitapi.fabric.microsoft.com/v1/workspaces/00ae18cb-e789-4d42-be8d-a5b47e524e22/aiskills/1d266d5d-cbbb-4099-9ef2-69fa875e4f89/aiassistant/openai"
+    "sales_data": "https://msitapi.fabric.microsoft.com/v1/workspaces/409e30ce-b2ad-4c80-a54d-d645227322e4/aiskills/360ef9b6-c087-4e72-ab7c-f157007cda3a/aiassistant/openai",
+    "airport_info": "https://msitapi.fabric.microsoft.com/v1/workspaces/00ae18cb-e789-4d42-be8d-a5b47e524e22/aiskills/1d266d5d-cbbb-4099-9ef2-69fa875e4f89/aiassistant/openai",
 }
 
 # ---- AUTHENTICATION SCOPES ----
@@ -29,7 +37,9 @@ AZURE_AI_PROJECT_ENDPOINT: str = os.environ.get("AZURE_AI_PROJECT_ENDPOINT", "")
 # ---- AZURE OPENAI CONFIGURATION ----
 AZURE_OPENAI_API_ENDPOINT: str = os.getenv("AZURE_OPENAI_API_ENDPOINT", "")
 AZURE_OPENAI_KEY: str = os.getenv("AZURE_OPENAI_KEY", "")
-AZURE_AOAI_CHAT_MODEL_DEPLOYMENT_ID: str = os.getenv("AZURE_AOAI_CHAT_MODEL_NAME_DEPLOYMENT_ID", "")
+AZURE_AOAI_CHAT_MODEL_DEPLOYMENT_ID: str = os.getenv(
+    "AZURE_AOAI_CHAT_MODEL_NAME_DEPLOYMENT_ID", ""
+)
 
 # ---- AGENT IDS ----
 FOUNDRY_AGENT_ID: str = "asst_qLI4yveCYhur62Ya4QhEkvFz"
@@ -43,27 +53,93 @@ DEFAULT_TIMEOUT_SEC: int = 300
 
 # ---- AGENT ROUTING KEYWORDS ----
 FABRIC_KEYWORDS = [
-    "sales", "revenue", "product", "mard", "glucose", "airport", "airports", 
-    "analytics", "metrics", "kpi", "airline", "airlines", "airplane", "airplanes", 
-    "aircraft", "flight", "flights", "route", "routes", "delay", "delays", 
-    "departure", "arrival", "terminal", "gate", "gates", "runway", "runways", 
-    "aviation", "crew", "baggage", "booking", "bookings", "ground service", 
-    "screening", "components", "legs", "training", "conditions"
+    "sales",
+    "revenue",
+    "product",
+    "mard",
+    "glucose",
+    "airport",
+    "airports",
+    "analytics",
+    "metrics",
+    "kpi",
+    "airline",
+    "airlines",
+    "airplane",
+    "airplanes",
+    "aircraft",
+    "flight",
+    "flights",
+    "route",
+    "routes",
+    "delay",
+    "delays",
+    "departure",
+    "arrival",
+    "terminal",
+    "gate",
+    "gates",
+    "runway",
+    "runways",
+    "aviation",
+    "crew",
+    "baggage",
+    "booking",
+    "bookings",
+    "ground service",
+    "screening",
+    "components",
+    "legs",
+    "training",
+    "conditions",
 ]
 
 FOUNDRY_KEYWORDS = [
-    "etd", "electronic trade documents", "customs", "commercial invoice", 
-    "trade documents", "ship manager", "letterhead", "signature", 
-    "proforma invoice", "certificate of origin", "nafta", "clearance", 
-    "broker", "upload", "document upload", "invoice upload"
+    "etd",
+    "electronic trade documents",
+    "customs",
+    "commercial invoice",
+    "trade documents",
+    "ship manager",
+    "letterhead",
+    "signature",
+    "proforma invoice",
+    "certificate of origin",
+    "nafta",
+    "clearance",
+    "broker",
+    "upload",
+    "document upload",
+    "invoice upload",
 ]
 
 COPILOT_KEYWORDS = [
-    "rate", "rates", "pricing", "cost", "price", "zone", "weight", 
-    "dimensional", "chargeable", "service", "express", "ground", 
-    "delivery", "terms", "surcharge", "fee", "fuel", "residential", 
-    "one rate", "freight", "sameday", "fedex ground", "fedex express", 
-    "package", "pound", "shipping cost"
+    "rate",
+    "rates",
+    "pricing",
+    "cost",
+    "price",
+    "zone",
+    "weight",
+    "dimensional",
+    "chargeable",
+    "service",
+    "express",
+    "ground",
+    "delivery",
+    "terms",
+    "surcharge",
+    "fee",
+    "fuel",
+    "residential",
+    "one rate",
+    "freight",
+    "sameday",
+    "fedex ground",
+    "fedex express",
+    "package",
+    "pound",
+    "shipping cost",
 ]
 
 # ---- AGENT DESCRIPTIONS ----
@@ -101,32 +177,44 @@ UNIFIED_FABRIC_AGENT_INSTRUCTIONS: str = (
 
 # ---- UI CONFIGURATION ----
 PAGE_TITLE: str = "R+D Intelligent Multi-Agent Assistant"
-APP_TITLE: str = "Research Intelligent Assistant 🤖"
+APP_TITLE: str = "Research Intelligent Assistant"
 APP_SUBTITLE: str = "powered by Azure AI + Fabric"
 CHAT_CONTAINER_HEIGHT: int = 500
 CHAT_INPUT_PLACEHOLDER: str = "What do you want to know about..."
 
+
 def validate_configuration() -> bool:
     """
     Validate that all required environment variables are set.
-    
-    Returns:
-        bool: True if all required variables are present, False otherwise
+
+    This function checks for the presence of all critical environment variables
+    required for the multi-agent system to function properly.
+
+    :return: True if all required variables are present, False otherwise
+    :raises: None - function handles missing variables gracefully
     """
-    required_vars = [
+    required_vars: List[str] = [
         "AZURE_AI_PROJECT_ENDPOINT",
-        "AZURE_OPENAI_API_ENDPOINT", 
+        "AZURE_OPENAI_API_ENDPOINT",
         "AZURE_OPENAI_KEY",
-        "AZURE_AOAI_CHAT_MODEL_NAME_DEPLOYMENT_ID"
+        "AZURE_AOAI_CHAT_MODEL_NAME_DEPLOYMENT_ID",
     ]
-    
-    missing_vars = []
-    for var in required_vars:
-        if not os.getenv(var):
-            missing_vars.append(var)
-    
-    if missing_vars:
-        print(f"⚠️ Missing required environment variables: {', '.join(missing_vars)}")
+
+    try:
+        missing_vars: List[str] = []
+        for var in required_vars:
+            if not os.getenv(var):
+                missing_vars.append(var)
+
+        if missing_vars:
+            logger.error(
+                f"Missing required environment variables: {', '.join(missing_vars)}"
+            )
+            return False
+
+        logger.info("All required environment variables validated successfully")
+        return True
+
+    except Exception as e:
+        logger.error(f"Error during configuration validation: {str(e)}")
         return False
-    
-    return True

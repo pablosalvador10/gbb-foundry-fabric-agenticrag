@@ -20,8 +20,10 @@ SCOPE = "https://api.fabric.microsoft.com/.default"
 
 _cred = InteractiveBrowserCredential()
 
+
 def _get_bearer() -> str:
     return _cred.get_token(SCOPE).token
+
 
 class FabricOpenAI(OpenAI):
     """
@@ -30,32 +32,38 @@ class FabricOpenAI(OpenAI):
       - Injects AAD Bearer token and correlation id
       - Pins 'api-version' as query param
     """
-    def __init__(self, api_version: str = "2024-05-01-preview", **kwargs: t.Any) -> None:
+
+    def __init__(
+        self, api_version: str = "2024-05-01-preview", **kwargs: t.Any
+    ) -> None:
         self.api_version = api_version
         default_query = kwargs.pop("default_query", {})
         default_query["api-version"] = self.api_version
         super().__init__(
-            api_key="",                     # not used
-            base_url=PUBLISHED_URL,         # IMPORTANT: your agent endpoint
+            api_key="",  # not used
+            base_url=PUBLISHED_URL,  # IMPORTANT: your agent endpoint
             default_query=default_query,
             **kwargs,
         )
 
     def _prepare_options(self, options: FinalRequestOptions) -> None:
-        headers: dict[str, str | Omit] = ({**options.headers} if is_given(options.headers) else {})
+        headers: dict[str, str | Omit] = (
+            {**options.headers} if is_given(options.headers) else {}
+        )
         headers["Authorization"] = f"Bearer {_get_bearer()}"
         headers.setdefault("Accept", "application/json")
         headers.setdefault("ActivityId", str(uuid.uuid4()))
         options.headers = headers
         return super()._prepare_options(options)
 
+
 client = FabricOpenAI()
 print("Client configured. You're signed in with InteractiveBrowserCredential().")
 
 
-def ask_data_agent(question: str,
-                   poll_interval_sec: int = 2,
-                   timeout_sec: int = 300) -> str:
+def ask_data_agent(
+    question: str, poll_interval_sec: int = 2, timeout_sec: int = 300
+) -> str:
     """
     Sends a question to the published Fabric Data Agent and returns the text reply.
     Cleans up the thread after completion.
@@ -76,8 +84,7 @@ def ask_data_agent(question: str,
 
         # Start a run (the data agent actually does the work)
         run = client.beta.threads.runs.create(
-            thread_id=thread.id,
-            assistant_id=assistant.id
+            thread_id=thread.id, assistant_id=assistant.id
         )
 
         # Poll until terminal state or timeout
@@ -85,7 +92,9 @@ def ask_data_agent(question: str,
         start = time.time()
         while run.status not in terminal:
             if time.time() - start > timeout_sec:
-                raise TimeoutError(f"Run polling exceeded {timeout_sec}s (last status={run.status})")
+                raise TimeoutError(
+                    f"Run polling exceeded {timeout_sec}s (last status={run.status})"
+                )
             time.sleep(poll_interval_sec)
             run = client.beta.threads.runs.retrieve(thread_id=thread.id, run_id=run.id)
 
@@ -108,5 +117,6 @@ def ask_data_agent(question: str,
             client.beta.threads.delete(thread_id=thread.id)
         except Exception:
             pass
+
 
 print("Helper ready: call ask_data_agent('your question')")

@@ -3,6 +3,7 @@ streamlit==1.39.0
 streamlit-chat==0.1.1
 matplotlib==3.9.2
 seaborn==0.13.2
+pydantic-settings
 
 # Azure SDKs
 azure-ai-projects

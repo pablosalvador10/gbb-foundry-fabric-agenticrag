@@ -7,62 +7,64 @@ import time
 from typing import List, Dict, Any
 from openai import AzureOpenAI
 
-def demonstrate_llm_variability(client: AzureOpenAI, 
-                              deployment_name: str, 
-                              prompt: str, 
-                              num_runs: int = 3) -> List[str]:
+
+def demonstrate_llm_variability(
+    client: AzureOpenAI, deployment_name: str, prompt: str, num_runs: int = 3
+) -> List[str]:
     """
     Demonstrate the non-deterministic nature of LLM outputs by running the same prompt multiple times.
     """
     responses = []
-    
+
     print(f"Running the same prompt {num_runs} times to show variability...")
     print(f"Prompt: {prompt}")
     print("-" * 80)
-    
+
     for i in range(num_runs):
         try:
             response = client.chat.completions.create(
                 model=deployment_name,
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=150,
-                temperature=0.7  # Higher temperature for more variability
+                temperature=0.7,  # Higher temperature for more variability
             )
-            
+
             content = response.choices[0].message.content.strip()
             responses.append(content)
-            
+
             print(f"Run {i+1}:")
             print(content)
             print("-" * 80)
-            
+
             # Add small delay to avoid rate limiting
             time.sleep(1)
-            
+
         except Exception as e:
             print(f"Error in run {i+1}: {e}")
             responses.append(f"Error: {e}")
-    
+
     return responses
 
-def create_evaluation_dataset_from_responses(original_prompt: str, 
-                                           responses: List[str], 
-                                           context: str = "") -> List[Dict[str, Any]]:
+
+def create_evaluation_dataset_from_responses(
+    original_prompt: str, responses: List[str], context: str = ""
+) -> List[Dict[str, Any]]:
     """
     Create an evaluation dataset from multiple responses to the same prompt.
     """
     dataset = []
-    
+
     for i, response in enumerate(responses):
         entry = {
             "query": original_prompt,
             "response": response,
             "context": context,
-            "run_id": i + 1
+            "run_id": i + 1,
         }
         dataset.append(entry)
-    
+
     return dataset
+
 
 def print_evaluation_insights(results: Dict[str, Any]) -> None:
     """
@@ -70,37 +72,40 @@ def print_evaluation_insights(results: Dict[str, Any]) -> None:
     """
     print("🔍 EVALUATION INSIGHTS")
     print("=" * 50)
-    
-    if 'metrics' in results:
-        metrics = results['metrics']
-        
+
+    if "metrics" in results:
+        metrics = results["metrics"]
+
         print("📊 Overall Metrics:")
         for metric_name, value in metrics.items():
             if isinstance(value, (int, float)):
                 print(f"  • {metric_name}: {value:.3f}")
-                
+
                 # Provide interpretation
-                if 'relevance' in metric_name.lower():
+                if "relevance" in metric_name.lower():
                     interpretation = get_relevance_interpretation(value)
-                elif 'coherence' in metric_name.lower():
+                elif "coherence" in metric_name.lower():
                     interpretation = get_coherence_interpretation(value)
-                elif 'fluency' in metric_name.lower():
+                elif "fluency" in metric_name.lower():
                     interpretation = get_fluency_interpretation(value)
-                elif 'groundedness' in metric_name.lower():
+                elif "groundedness" in metric_name.lower():
                     interpretation = get_groundedness_interpretation(value)
                 else:
-                    interpretation = "Higher values generally indicate better performance"
-                
+                    interpretation = (
+                        "Higher values generally indicate better performance"
+                    )
+
                 print(f"    → {interpretation}")
-    
-    if 'rows' in results and len(results['rows']) > 0:
+
+    if "rows" in results and len(results["rows"]) > 0:
         print(f"\n📈 Individual Results (showing first 3 of {len(results['rows'])}):")
-        for i, row in enumerate(results['rows'][:3]):
+        for i, row in enumerate(results["rows"][:3]):
             print(f"\n  Result {i+1}:")
-            if 'outputs' in row:
-                for metric, value in row['outputs'].items():
+            if "outputs" in row:
+                for metric, value in row["outputs"].items():
                     if isinstance(value, (int, float)):
                         print(f"    • {metric}: {value:.3f}")
+
 
 def get_relevance_interpretation(score: float) -> str:
     """Provide human-readable interpretation of relevance scores."""
@@ -113,6 +118,7 @@ def get_relevance_interpretation(score: float) -> str:
     else:
         return "Poor - Response doesn't adequately address the question"
 
+
 def get_coherence_interpretation(score: float) -> str:
     """Provide human-readable interpretation of coherence scores."""
     if score >= 4.0:
@@ -123,6 +129,7 @@ def get_coherence_interpretation(score: float) -> str:
         return "Fair - Response is somewhat coherent but may have issues"
     else:
         return "Poor - Response lacks clear structure or logical flow"
+
 
 def get_fluency_interpretation(score: float) -> str:
     """Provide human-readable interpretation of fluency scores."""
@@ -135,6 +142,7 @@ def get_fluency_interpretation(score: float) -> str:
     else:
         return "Poor - Response has significant language or grammar problems"
 
+
 def get_groundedness_interpretation(score: float) -> str:
     """Provide human-readable interpretation of groundedness scores."""
     if score >= 4.0:
@@ -142,30 +150,36 @@ def get_groundedness_interpretation(score: float) -> str:
     elif score >= 3.0:
         return "Good - Response is mostly grounded in the context"
     elif score >= 2.0:
-        return "Fair - Response partially uses the context but may add unsupported claims"
+        return (
+            "Fair - Response partially uses the context but may add unsupported claims"
+        )
     else:
         return "Poor - Response contains claims not supported by the context"
 
-def save_lab1_results(results: Dict[str, Any], filename: str = "evaluation_results.json") -> None:
+
+def save_lab1_results(
+    results: Dict[str, Any], filename: str = "evaluation_results.json"
+) -> None:
     """Save Lab 1 results with timestamp and metadata."""
     import os
     from datetime import datetime
-    
+
     # Add metadata
-    results['lab'] = 'Lab 1: Evaluation Fundamentals'
-    results['timestamp'] = datetime.now().isoformat()
-    results['total_evaluations'] = len(results.get('rows', []))
-    
+    results["lab"] = "Lab 1: Evaluation Fundamentals"
+    results["timestamp"] = datetime.now().isoformat()
+    results["total_evaluations"] = len(results.get("rows", []))
+
     # Ensure data directory exists
-    data_dir = os.path.join(os.path.dirname(__file__), '..', 'data')
+    data_dir = os.path.join(os.path.dirname(__file__), "..", "data")
     os.makedirs(data_dir, exist_ok=True)
-    
+
     # Save results
     output_path = os.path.join(data_dir, filename)
-    with open(output_path, 'w') as f:
+    with open(output_path, "w") as f:
         json.dump(results, f, indent=2)
-    
+
     print(f"✅ Results saved to: {output_path}")
+
 
 # Sample prompts for business-relevant evaluation demonstrations
 DEMO_PROMPTS = {
@@ -173,5 +187,5 @@ DEMO_PROMPTS = {
     "explanatory": "Explain how package tracking works from pickup to delivery.",
     "analytical": "Compare the cost-effectiveness of ground shipping versus air shipping for bulk deliveries.",
     "instruction": "What steps should a customer take if their package delivery attempt failed?",
-    "service": "How can I change my delivery address after my package has shipped?"
+    "service": "How can I change my delivery address after my package has shipped?",
 }
