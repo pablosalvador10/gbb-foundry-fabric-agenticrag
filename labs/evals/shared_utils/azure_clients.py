@@ -34,7 +34,7 @@ class AzureClientManager:
     def _validate_environment(self):
         """Validate required environment variables are set."""
         required_vars = [
-            "AZURE_OPENAI_ENDPOINT",
+            "AZURE_OPENAI_API_ENDPOINT",
             "AZURE_OPENAI_API_KEY",
             "AZURE_OPENAI_DEPLOYMENT_NAME",
         ]
@@ -51,14 +51,14 @@ class AzureClientManager:
             self.openai_client = AzureOpenAI(
                 api_key=os.getenv("AZURE_OPENAI_API_KEY"),
                 api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-15-preview"),
-                azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
+                azure_endpoint=os.getenv("AZURE_OPENAI_API_ENDPOINT"),
             )
         return self.openai_client
 
     def get_model_config(self, model_name: Optional[str] = None) -> dict:
         """Get model configuration for evaluations."""
         return {
-            "azure_endpoint": os.getenv("AZURE_OPENAI_ENDPOINT"),
+            "azure_endpoint": os.getenv("AZURE_OPENAI_API_ENDPOINT"),
             "api_key": os.getenv("AZURE_OPENAI_API_KEY"),
             "api_version": os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-15-preview"),
             "azure_deployment": model_name or os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME"),

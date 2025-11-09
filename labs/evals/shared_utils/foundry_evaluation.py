@@ -102,14 +102,12 @@ class FoundryEvaluationRunner:
                         description
                         or f"Evaluation run with {len(evaluators)} evaluators"
                     )
-                    results["_note"] = (
-                        "Dataset uploaded to AI Foundry, evaluation run locally"
-                    )
+                    results[
+                        "_note"
+                    ] = "Dataset uploaded to AI Foundry, evaluation run locally"
 
                 print("✅ Evaluation completed with dataset uploaded to AI Foundry")
-                print(
-                    f"📁 Dataset '{dataset_name}' is now visible in AI Foundry portal"
-                )
+                print(f"📁 Dataset '{dataset_name}' is now visible in AI Foundry portal")
                 print(
                     "🔮 When evaluation API is available, it will use this uploaded dataset"
                 )

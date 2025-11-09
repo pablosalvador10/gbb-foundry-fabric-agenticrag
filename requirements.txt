@@ -1,49 +1,219 @@
-# Streamlit and related visualization tools
+# ================================================# ====================================# Streamlit and related visualization tools
+
+# CORE DEPENDENCIES
+
+# ================================================# CORE DEPENDENCIESstreamlit==1.39.0
+
+python-dotenv==1.0.1
+
+pydantic==2.9.2# ====================================streamlit-chat==0.1.1
+
+pydantic-settings
+
+pyyaml>=6.0.1matplotlib==3.9.2
+
+
+
+# ================================================# Python environmentseaborn==0.13.2
+
+# AZURE SDKs
+
+# ================================================python-dotenv==1.0.1pydantic-settings
+
+azure-ai-projects
+
+azure-ai-evaluation==1.2.0pydantic==2.9.2
+
+azure-ai-inference[opentelemetry]
+
+azure-ai-documentintelligence==1.0.0b4pydantic-settings# Azure SDKs
+
+azure-identity==1.19.0
+
+azure-mgmt-resource==23.1.1pyyaml>=6.0.1azure-ai-projects
+
+azure-storage-blob==12.23.1
+
+azure-cosmos==4.7.0azure-identity==1.19.0
+
+azure-search-documents==11.6.0b5
+
+# ====================================azure-mgmt-resource==23.1.1
+
+# ================================================
+
+# SEMANTIC KERNEL & AGENTS# AZURE SDKsazure-ai-documentintelligence==1.0.0b4
+
+# ================================================
+
+semantic_kernel# ====================================azure-ai-evaluation==1.2.0
+
+semantic-kernel[azure]
+
+azure-cosmos==4.7.0
+
+# ================================================
+
+# MONITORING & TELEMETRY# Azure AI & Agent Frameworkazure-search-documents==11.6.0b5
+
+# ================================================
+
+azure-monitor-opentelemetry==1.6.4azure-ai-projectsazure-storage-blob==12.23.1
+
+opentelemetry-exporter-otlp
+
+opentelemetry-instrumentation-httpxazure-identity==1.19.0azure-monitor-opentelemetry==1.6.4
+
+
+
+# ================================================azure-ai-evaluation==1.2.0
+
+# ASYNC & HTTP
+
+# ================================================azure-ai-inference[opentelemetry]# HTTPX fix for OpenAI
+
+httpx==0.27.2
+
+aiohttp==3.10.10httpx==0.27.2
+
+requests==2.32.3
+
+asyncio==3.4.3# Azure Resources
+
+tenacity==8.5.0
+
+backoff==2.2.1azure-mgmt-resource==23.1.1# Async and event loop tools
+
+
+
+# ================================================azure-storage-blob==12.23.1asyncio==3.4.3
+
+# DATA PROCESSING
+
+# ================================================tenacity==8.5.0
+
+pandas==2.2.3
+
+pyarrow==17.0.0# Azure AI Servicessemantic_kernel
+
+pymongo==4.10.1
+
+azure-ai-documentintelligence==1.0.0b4semantic-kernel[azure]
+
+# ================================================
+
+# UI & VISUALIZATIONazure-cosmos==4.7.0azure-monitor-opentelemetry
+
+# ================================================
+
+streamlit==1.39.0azure-search-documents==11.6.0b5azure-ai-inference[opentelemetry]
+
+streamlit-chat==0.1.1
+
+matplotlib==3.9.2opentelemetry-exporter-otlp
+
+seaborn==0.13.2
+
+# ====================================opentelemetry-instrumentation-httpx
+
+# ================================================
+
+# DOCUMENT PROCESSING# SEMANTIC KERNEL & AGENTS
+
+# ================================================
+
+PyPDF2==3.0.1# ====================================# General utilities
+
+PyMuPDF
+
+Jinja2==3.1.4requests==2.32.3
+
+
+
+# ================================================semantic_kernelpython-dotenv==1.0.1
+
+# UTILITIES
+
+# ================================================semantic-kernel[azure]pandas==2.2.3
+
+colorama
+
+rapidfuzzpydantic==2.9.2
+
+jq==1.8.0
+
+# ====================================pyarrow==17.0.0
+
+# ================================================
+
+# TESTING# MONITORING & TELEMETRYaiohttp==3.10.10
+
+# ================================================
+
+pytest==8.3.4# ====================================backoff==2.2.1
+
+
+PyPDF2==3.0.1
+
+azure-monitor-opentelemetry==1.6.4Jinja2==3.1.4
+
+opentelemetry-exporter-otlppymongo==4.10.1
+
+opentelemetry-instrumentation-httpxcolorama
+
+PyMuPDF
+
+# ====================================rapidfuzz
+
+# ASYNC & HTTPpytest==8.3.4
+
+# ====================================jq==1.8.0
+
+
+
+httpx==0.27.2
+
+aiohttp==3.10.10
+requests==2.32.3
+asyncio==3.4.3
+tenacity==8.5.0
+backoff==2.2.1
+
+# ====================================
+# DATA PROCESSING
+# ====================================
+
+pandas==2.2.3
+pyarrow==17.0.0
+pymongo==4.10.1
+
+# ====================================
+# UI & VISUALIZATION
+# ====================================
+
 streamlit==1.39.0
 streamlit-chat==0.1.1
 matplotlib==3.9.2
 seaborn==0.13.2
-pydantic-settings
 
-# Azure SDKs
-azure-ai-projects
-azure-identity==1.19.0
-azure-mgmt-resource==23.1.1
-azure-ai-documentintelligence==1.0.0b4
-azure-ai-evaluation==1.2.0
-azure-cosmos==4.7.0
-azure-search-documents==11.6.0b5
-azure-storage-blob==12.23.1
-azure-monitor-opentelemetry==1.6.4
+# ====================================
+# DOCUMENT PROCESSING
+# ====================================
 
-# HTTPX fix for OpenAI
-httpx==0.27.2
-
-# Async and event loop tools
-asyncio==3.4.3
-tenacity==8.5.0
-semantic_kernel
-semantic-kernel[azure]
-azure-monitor-opentelemetry
-azure-ai-inference[opentelemetry]
-opentelemetry-exporter-otlp
-opentelemetry-instrumentation-httpx
-
-# General utilities
-requests==2.32.3
-python-dotenv==1.0.1
-pandas==2.2.3
-pydantic==2.9.2
-pyarrow==17.0.0
-aiohttp==3.10.10
-backoff==2.2.1
 PyPDF2==3.0.1
-Jinja2==3.1.4
-pymongo==4.10.1
-colorama
 PyMuPDF
+Jinja2==3.1.4
+
+# ====================================
+# UTILITIES
+# ====================================
+
+colorama
 rapidfuzz
-pytest==8.3.4
 jq==1.8.0
 
+# ====================================
+# TESTING
+# ====================================
 
+pytest==8.3.4

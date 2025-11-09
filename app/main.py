@@ -23,17 +23,17 @@ from settings import (
     CHAT_INPUT_PLACEHOLDER,
     validate_configuration,
 )
-from agent_registry.foundry.foundryagents import (
+from agents.foundry.foundryagents import (
     initialize_foundry_services,
     get_foundry_agent,
     is_foundry_agent_available,
 )
-from agent_registry.azure_openai.fabric import (
+from app.agents.azure_openai.dataagents import (
     initialize_fabric_services,
     get_unified_fabric_agent,
     is_unified_fabric_agent_available,
 )
-from agent_registry.azure_openai.intelligent_orchestrator import get_orchestrator
+from agents.azure_openai.intelligent_orchestrator import get_orchestrator
 from utils.ml_logging import get_logger
 
 logger = get_logger("app.main")

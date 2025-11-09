@@ -1,1 +1,0 @@
-# Agent registry package
