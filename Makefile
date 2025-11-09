@@ -80,7 +80,7 @@ run_streamlit:
 
 # Target to run the Streamlit app locally
 run_app:
-	streamlit run usecases/agenticrag/app_maf.py
+	streamlit run app\main.py
 
 run_pylint:
 	@echo "Running linter"

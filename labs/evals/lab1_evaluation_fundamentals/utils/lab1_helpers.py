@@ -167,11 +167,11 @@ def save_lab1_results(results: Dict[str, Any], filename: str = "evaluation_resul
     
     print(f"✅ Results saved to: {output_path}")
 
-# Sample prompts that work well for demonstrating evaluation concepts
+# Sample prompts for business-relevant evaluation demonstrations
 DEMO_PROMPTS = {
-    "factual": "What is the capital of Japan and what is it known for?",
-    "explanatory": "Explain how vaccines work to prevent diseases.",
-    "creative": "Write a short story about a robot learning to paint.",
-    "analytical": "Compare the advantages and disadvantages of renewable energy sources.",
-    "instruction": "Provide step-by-step instructions for making a paper airplane."
+    "factual": "What are the standard delivery timeframes for domestic overnight shipping?",
+    "explanatory": "Explain how package tracking works from pickup to delivery.",
+    "analytical": "Compare the cost-effectiveness of ground shipping versus air shipping for bulk deliveries.",
+    "instruction": "What steps should a customer take if their package delivery attempt failed?",
+    "service": "How can I change my delivery address after my package has shipped?"
 }
