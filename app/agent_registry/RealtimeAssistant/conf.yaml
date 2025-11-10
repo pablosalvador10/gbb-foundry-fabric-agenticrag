@@ -9,7 +9,7 @@ azure_ai_foundry:
   endpoint_env: "AZURE_AI_PROJECT_ENDPOINT"
   model_deployment_env: "AZURE_AI_MODEL_DEPLOYMENT_NAME"
   # Agent ID for reusing existing agent (optional - will create new if not provided)
-  agent_id_env: "REALTIME_ASSISTANT_AGENT_ID"  # Set this in .env to reuse existing agent
+  agent_id_env: asst_c5nsKgXECwvlBafUNpOFjuZO  # Set this in .env to reuse existing agent
 
 # Bing Search Configuration
 bing_search:
