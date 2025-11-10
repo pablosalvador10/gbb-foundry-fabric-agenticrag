@@ -86,6 +86,15 @@ run_pylint:
 	@echo "Running linter"
 	find . -type f -name "*.py" ! -path "./tests/*" | xargs pylint -disable=logging-fstring-interpolation > utils/pylint_report/pylint_report.txt
 
+# Target to create the RealtimeAssistant agent with file search (run once offline)
+create_agent:
+	@echo "Creating RealtimeAssistant agent with file search capability..."
+	@echo "This will upload airport_operations.pdf and create a vector store in Azure AI Foundry"
+	@echo ""
+	$(PYTHON_INTERPRETER) -m app.agent_registry.RealtimeAssistant.create_agent
+	@echo ""
+	@echo "Done! Copy the printed IDs and add them to your .env file"
+
 
 ## Deployment App
 

@@ -1,21 +1,9 @@
-import os
-from typing import Annotated
-from pydantic import Field
 from utils.ml_logging import get_logger
 from src.agents.azure_openai.main import setup_aoai_agent
-from src.agents.dataagents.main import ask_fabric_agent
 from agent_registry.config_loader import load_agent_config
+from app.agent_registry.AirlineOpsContext.tools import retrieve_operational_context
 
 logger = get_logger("agent_registry.azure_openai.airline_ops_context_agent")
-
-# Global credential cache - will be set by main app
-_azure_credential = None
-
-def set_azure_credential(credential):
-    """Set the cached Azure credential for this module."""
-    global _azure_credential
-    _azure_credential = credential
-    logger.info("🔐 Azure credential cached for AirlineOpsContext agent")
 
 # ===============================
 # LOAD DYNAMIC CONFIGURATION
@@ -38,54 +26,6 @@ DEPLOYMENT_NAME = config["azure_openai"]["deployment"]
 AIRPORT_INFO_ENDPOINT = config["fabric_endpoints"]["airport_info"]
 
 logger.info(f"Loaded configuration for agent: {NAME}")
-
-# ===============================
-# TOOLS
-# ===============================
-
-
-def retrieve_operational_context(
-    query: Annotated[
-        str,
-        Field(
-            description="Operational query about flights, baggage, routes, airports, or SLAs"
-        ),
-    ]
-) -> str:
-    """
-    Retrieve trusted operational context from Microsoft Fabric data sources.
-
-    This tool queries the governed Fabric data agent to retrieve accurate
-    operational information about airline operations including flights,
-    baggage handling, routes, airport operations, and SLA metrics.
-
-    :param query: The operational question or data request
-    :return: Retrieved operational context and data from Fabric
-    """
-    try:
-        logger.info("=" * 80)
-        logger.info("🔧 TOOL EXECUTION: retrieve_operational_context")
-        logger.info(f"📋 Query: {query}")
-        logger.info("=" * 80)
-
-        # Query the Fabric agent with the airport info endpoint
-        # Use cached credential if available
-        response = ask_fabric_agent(
-            endpoint=AIRPORT_INFO_ENDPOINT, 
-            question=query,
-            credential=_azure_credential
-        )
-
-        logger.info("✅ Operational context retrieved successfully from Fabric")
-        logger.info("=" * 80)
-        return response
-
-    except Exception as e:
-        error_msg = f"Error retrieving operational context: {str(e)}"
-        logger.error(f"❌ {error_msg}")
-        logger.info("=" * 80)
-        return error_msg
-
 
 # ===============================
 # AGENT SETUP

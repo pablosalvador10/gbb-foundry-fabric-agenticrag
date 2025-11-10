@@ -4,14 +4,17 @@ Realtime Assistant Agent Factory.
 Creates an Azure AI Foundry agent with multiple capabilities:
 - Bing Grounding Search for web information
 - File Search for document retrieval
+- Code Interpreter for Python execution
 - Custom function tools (weather, time)
 """
 
 import os
-from typing import Optional
+from pathlib import Path
+from typing import Optional, Tuple
 
-from agent_framework import ChatAgent
+from agent_framework import ChatAgent, HostedWebSearchTool, HostedCodeInterpreterTool
 from agent_framework.azure import AzureAIAgentClient
+from azure.ai.agents.aio import AgentsClient
 from azure.ai.projects.aio import AIProjectClient
 from azure.identity.aio import AzureCliCredential
 
@@ -22,148 +25,264 @@ from utils.ml_logging import get_logger
 logger = get_logger("app.agent_registry.RealtimeAssistant.main")
 
 
-async def setup_realtime_assistant() -> ChatAgent:
+async def create_realtime_assistant() -> Tuple[ChatAgent, str, str, str]:
     """
-    Initialize the Realtime Assistant agent with all capabilities.
-
-    This function creates an Azure AI Foundry agent that combines:
-    - Bing Grounding Search for real-time web information
-    - File Search for document retrieval
-    - Custom function tools (weather, time)
-
-    The agent can reuse an existing agent ID from configuration or create a new one.
-
-    :return: Configured ChatAgent instance ready to use as a tool
-    :raises: Exception if agent creation fails or required environment variables are missing
+    Create NEW Realtime Assistant agent with all tools (OFFLINE USE ONLY).
+    
+    This function creates everything from scratch:
+    1. Uploads airport_operations.pdf to Azure AI
+    2. Creates vector store with the file
+    3. Creates Azure AI agent with all tools
+    4. Returns agent and IDs for future reuse
+    
+    Run this ONCE offline, then use setup_realtime_assistant(agent_id) in production.
+    
+    :return: Tuple of (agent, agent_id, vector_store_id, file_id)
+    :raises: Exception if creation fails
     """
     try:
-        # Load dynamic configuration
-        logger.info("Loading Realtime Assistant configuration...")
+        logger.info("=" * 80)
+        logger.info("CREATING NEW Realtime Assistant agent")
+        logger.info("=" * 80)
+        
+        # Load configuration
+        logger.info("Loading configuration")
         config = load_agent_config("REALTIME_ASSISTANT")
-
-        # Extract configuration values
+        
         name = config["name"]
         description = config["description"]
         instructions = config["instructions"]
-
-        # Azure AI Foundry settings
         endpoint = config["azure_ai_foundry"]["endpoint"]
         model_deployment = config["azure_ai_foundry"]["model_deployment"]
-        agent_id = config["azure_ai_foundry"].get(
-            "agent_id"
-        )  # Optional - reuse existing
-
+        
+        # Get PDF file path
+        pdf_file_path = Path("app/data/airport_operations.pdf")
+        if not pdf_file_path.exists():
+            raise FileNotFoundError(f"PDF file not found: {pdf_file_path}")
+        
+        logger.info(f"PDF file located: {pdf_file_path}")
+        
         # Initialize Azure clients
+        logger.info("Initializing Azure clients")
         credential = AzureCliCredential()
         project_client = AIProjectClient(endpoint=endpoint, credential=credential)
-
-        # Build tools list for Azure AI agent creation
-        azure_tools = []
-
-        # TODO: Add Bing Search and File Search tools
-        # These require proper Azure AI Foundry tool wrapper implementation
+        agents_client = AgentsClient(endpoint=endpoint, credential=credential)
         
-        # # 1. Add Bing Search if enabled
-        # if config.get("bing_search", {}).get("enabled", False):
-        #     logger.info("Adding Bing Grounding Search tool...")
-        #     bing_connection_id = config["bing_search"].get("connection_id")
-
-        #     if bing_connection_id:
-        #         # For Azure AI Foundry, we need to use the tool definition format
-        #         bing_tool = {
-        #             "type": "bing_grounding",
-        #             "bing_grounding": {
-        #                 "connection_id": bing_connection_id
-        #             }
-        #         }
-        #         azure_tools.append(bing_tool)
-        #         logger.info("Bing Search tool added successfully")
-        #     else:
-        #         logger.warning("Bing search enabled but no connection_id provided")
-
-        # # 2. Add File Search if enabled
-        # if config.get("file_search", {}).get("enabled", False):
-        #     logger.info("Adding File Search tool...")
-        #     vector_store_id = config["file_search"].get("vector_store_id")
-
-        #     if vector_store_id:
-        #         # For Azure AI Foundry, use the file search tool definition format
-        #         file_search_tool = {
-        #             "type": "file_search",
-        #             "file_search": {
-        #                 "vector_store_ids": [vector_store_id]
-        #             }
-        #         }
-        #         azure_tools.append(file_search_tool)
-        #         logger.info(
-        #             f"File Search tool added with vector store: {vector_store_id}"
-        #         )
-        #     else:
-        #         logger.warning("File search enabled but no vector_store_id provided")
-
-        # # 3. Add custom function tools
-        # TODO: Implement proper function tool wrapping for Azure AI Foundry
-        # function_tools = []
-        # for tool_name in config.get("tools", []):
-        #     if tool_name == "get_weather":
-        #         function_tools.append(get_weather)
-        #         logger.info("Added get_weather function tool")
-        #     elif tool_name == "get_time":
-        #         function_tools.append(get_time)
-        #         logger.info("Added get_time function tool")
-        #     else:
-        #         logger.warning(f"Unknown tool '{tool_name}' in configuration")
-
-        # Combine all tools
-        all_tools = azure_tools  # + function_tools when implemented
-
-        logger.info(f"Total tools configured: {len(all_tools)} (Bing/File Search/Functions temporarily disabled)")
-
-        # Create or reuse agent
-        if agent_id:
-            logger.info(f"Reusing existing agent with ID: {agent_id}")
-            chat_client = AzureAIAgentClient(
-                project_client=project_client, agent_id=agent_id
+        # Step 1: Upload PDF file
+        logger.info(f"Uploading {pdf_file_path.name} to Azure AI")
+        file = await project_client.agents.files.upload_and_poll(
+            file_path=str(pdf_file_path), 
+            purpose="assistants"
+        )
+        logger.info(f"File uploaded - ID: {file.id}")
+        
+        # Step 2: Create vector store
+        logger.info("Creating vector store")
+        vector_store = await project_client.agents.vector_stores.create_and_poll(
+            file_ids=[file.id], 
+            name="airline_ops_knowledge_base"
+        )
+        logger.info(f"Vector store created - ID: {vector_store.id}")
+        
+        # Step 3: Build tools list
+        logger.info("Configuring tools")
+        all_tools = []
+        
+        # Bing Search
+        if config.get("bing_search", {}).get("enabled", False):
+            bing_connection_id = os.getenv(
+                config["bing_search"].get("connection_id_env", "BING_CONNECTION_ID")
             )
-        else:
-            logger.info(f"Creating new agent: {name}")
-
-            # Create new Azure AI Foundry agent with all tools
-            azure_ai_agent = await project_client.agents.create_agent(
-                model=model_deployment,
-                name=name,
-                instructions=instructions,
-                tools=all_tools,  # All tools passed to remote agent
-            )
-            agent_id = azure_ai_agent.id
-            logger.info(f"New agent created with ID: {agent_id}")
-            logger.info(
-                f"IMPORTANT: Store this agent_id in your .env file as REALTIME_ASSISTANT_AGENT_ID={agent_id}"
-            )
-
-            chat_client = AzureAIAgentClient(
-                project_client=project_client, agent_id=agent_id
-            )
-
-        # Create ChatAgent wrapper
+            if bing_connection_id:
+                bing_tool = HostedWebSearchTool(
+                    name=config["bing_search"].get("name", "Bing Grounding Search"),
+                    description=config["bing_search"].get(
+                        "description", "Search the web for current information"
+                    ),
+                    connection_id=bing_connection_id,
+                )
+                all_tools.append(bing_tool)
+                logger.info("Bing Search tool added")
+        
+        # Code Interpreter
+        code_interpreter = HostedCodeInterpreterTool(
+            name="Python Code Interpreter",
+            description="Execute Python code for calculations, data analysis, and problem solving"
+        )
+        all_tools.append(code_interpreter)
+        logger.info("Code Interpreter tool added")
+        
+        # File Search with vector store
+        from agent_framework import HostedFileSearchTool
+        file_search_tool = HostedFileSearchTool(
+            vector_store_ids=[vector_store.id]
+        )
+        all_tools.append(file_search_tool)
+        logger.info(f"File Search tool added with vector store: {vector_store.id}")
+        
+        # Custom function tools
+        all_tools.append(get_weather)
+        all_tools.append(get_time)
+        logger.info("Custom function tools added (weather, time)")
+        
+        logger.info(f"Total tools configured: {len(all_tools)}")
+        
+        # Step 4: Create Azure AI agent
+        logger.info(f"Creating Azure AI agent: {name}")
+        azure_ai_agent = await project_client.agents.create_agent(
+            model=model_deployment,
+            name=name,
+            instructions=instructions,
+            tools=all_tools,
+        )
+        agent_id = azure_ai_agent.id
+        logger.info(f"Agent created - ID: {agent_id}")
+        
+        # Step 5: Create ChatAgent wrapper
+        logger.info("Creating ChatAgent wrapper")
+        chat_client = AzureAIAgentClient(
+            agents_client=agents_client, 
+            agent_id=agent_id
+        )
+        
         agent = ChatAgent(
             chat_client=chat_client,
             name=f"{name}Agent",
             description=description,
             instructions=instructions,
-            tools=all_tools,  # Tools also in wrapper for consistency
+            tools=all_tools,
+            user_approves_function_calls=False,
         )
-
-        logger.info(f"Realtime Assistant agent '{name}' initialized successfully")
-        logger.info(f"Agent capabilities: Bing Search, File Search, Weather, Time")
-
-        return agent
-
-    except KeyError as e:
-        logger.error(f"Missing required configuration key: {e}")
-        raise
+        
+        logger.info("=" * 80)
+        logger.info("SUCCESS - Realtime Assistant created")
+        logger.info("=" * 80)
+        logger.info(f"Agent ID: {agent_id}")
+        logger.info(f"Vector Store ID: {vector_store.id}")
+        logger.info(f"File ID: {file.id}")
+        logger.info("=" * 80)
+        logger.info("Add these to your .env file:")
+        logger.info(f"REALTIME_ASSISTANT_AGENT_ID={agent_id}")
+        logger.info(f"FILE_SEARCH_VECTOR_STORE_ID={vector_store.id}")
+        logger.info(f"AIRLINE_OPS_FILE_ID={file.id}")
+        logger.info("=" * 80)
+        
+        return agent, agent_id, vector_store.id, file.id
+        
     except Exception as e:
-        logger.error(f"Failed to create Realtime Assistant agent: {str(e)}")
+        logger.error(f"Failed to create Realtime Assistant: {str(e)}")
+        raise
+
+
+async def setup_realtime_assistant(agent_id: Optional[str] = None) -> ChatAgent:
+    """
+    Connect to EXISTING Realtime Assistant agent (RUNTIME USE).
+    
+    This function connects to a pre-existing Azure AI agent by ID.
+    It does NOT create a new agent or upload files.
+    
+    The agent must already exist (created with create_realtime_assistant()).
+    This is the FAST path for production runtime.
+    
+    :param agent_id: Azure AI agent ID. If not provided, reads from
+                     REALTIME_ASSISTANT_AGENT_ID environment variable.
+    :return: Configured ChatAgent instance
+    :raises: Exception if agent_id not found or connection fails
+    """
+    try:
+        logger.info("Connecting to existing Realtime Assistant agent")
+        
+        # Load configuration
+        config = load_agent_config("REALTIME_ASSISTANT")
+        
+        name = config["name"]
+        description = config["description"]
+        instructions = config["instructions"]
+        endpoint = config["azure_ai_foundry"]["endpoint"]
+        
+        # Get agent ID from parameter, config, or environment
+        if not agent_id:
+            agent_id = config["azure_ai_foundry"].get("agent_id")
+        if not agent_id:
+            agent_id = os.getenv("REALTIME_ASSISTANT_AGENT_ID")
+        
+        if not agent_id:
+            raise ValueError(
+                "agent_id not provided and REALTIME_ASSISTANT_AGENT_ID not set in environment. "
+                "Run create_realtime_assistant() first to create the agent."
+            )
+        
+        logger.info(f"Agent ID: {agent_id}")
+        
+        # Initialize Azure clients
+        logger.info("Initializing Azure clients")
+        credential = AzureCliCredential()
+        agents_client = AgentsClient(endpoint=endpoint, credential=credential)
+        
+        # Connect to existing agent
+        logger.info(f"Connecting to agent: {agent_id}")
+        chat_client = AzureAIAgentClient(
+            agents_client=agents_client,
+            agent_id=agent_id
+        )
+        
+        # Build tools list (for ChatAgent wrapper, not for remote agent)
+        all_tools = []
+        
+        # Bing Search
+        if config.get("bing_search", {}).get("enabled", False):
+            bing_connection_id = os.getenv(
+                config["bing_search"].get("connection_id_env", "BING_CONNECTION_ID")
+            )
+            if bing_connection_id:
+                bing_tool = HostedWebSearchTool(
+                    name=config["bing_search"].get("name", "Bing Grounding Search"),
+                    description=config["bing_search"].get(
+                        "description", "Search the web for current information"
+                    ),
+                    connection_id=bing_connection_id,
+                )
+                all_tools.append(bing_tool)
+        
+        # Code Interpreter
+        code_interpreter = HostedCodeInterpreterTool(
+            name="Python Code Interpreter",
+            description="Execute Python code for calculations, data analysis, and problem solving"
+        )
+        all_tools.append(code_interpreter)
+        
+        # File Search (if vector store ID available)
+        vector_store_id = os.getenv("FILE_SEARCH_VECTOR_STORE_ID")
+        if vector_store_id:
+            from agent_framework import HostedFileSearchTool
+            file_search_tool = HostedFileSearchTool(
+                vector_store_ids=[vector_store_id]
+            )
+            all_tools.append(file_search_tool)
+            logger.info(f"File Search enabled with vector store: {vector_store_id}")
+        
+        # Custom function tools
+        all_tools.append(get_weather)
+        all_tools.append(get_time)
+        
+        # Create ChatAgent wrapper
+        logger.info("Creating ChatAgent wrapper")
+        agent = ChatAgent(
+            chat_client=chat_client,
+            name=f"{name}Agent",
+            description=description,
+            instructions=instructions,
+            tools=all_tools,
+            user_approves_function_calls=False,
+        )
+        
+        logger.info(f"Realtime Assistant '{name}' connected successfully")
+        logger.info(f"Tools available: {len(all_tools)}")
+        
+        return agent
+        
+    except Exception as e:
+        logger.error(f"Failed to connect to Realtime Assistant: {str(e)}")
         raise
 
 

@@ -117,8 +117,11 @@ async def process_query(query: str) -> str:
 
     This function handles:
     1. Thread creation for first query (conversation memory)
-    2. Query execution with the agent
+    2. Query execution with the agent (tools auto-approved for efficiency)
     3. Response extraction
+
+    Azure OpenAI models support parallel tool calling natively - when multiple
+    tools can be executed independently, they run concurrently automatically.
 
     Args:
         query: User's question or request
@@ -151,6 +154,9 @@ async def process_query(query: str) -> str:
         # Execute query with agent using persistent thread
         logger.info("🤖 EXECUTING WITH: AirlineIntelligentAssistant (Main Orchestrator)")
         logger.info("📡 Available sub-agents: AirlineOpsContext, RealtimeAssistant")
+        logger.info("⚡ Tools auto-approved - parallel execution enabled")
+        
+        # Simple execution - no approval loop needed
         result = await agent.run(query, thread=thread)
 
         # Extract response text
