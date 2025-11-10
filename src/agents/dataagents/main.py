@@ -5,10 +5,12 @@ Handles Fabric Data agents
 
 import time
 import uuid
+import typing as t
 from typing import Optional
 
 from openai import OpenAI
 from openai._models import FinalRequestOptions
+from openai._types import Omit
 from openai._utils import is_given
 from azure.identity import DefaultAzureCredential
 
@@ -21,11 +23,44 @@ from utils.ml_logging import get_logger
 
 logger = get_logger("src.agents.dataagents")
 
-# ---- FABRIC CONFIGURATION ----
 FABRIC_SCOPE: str = "https://api.fabric.microsoft.com/.default"
+FABRIC_SCOPE_ALTERNATIVE: str = "https://analysis.windows.net/powerbi/api/.default"
 FABRIC_API_VERSION: str = "2024-05-01-preview"
 DEFAULT_POLL_INTERVAL_SEC: int = 2
 DEFAULT_TIMEOUT_SEC: int = 300
+
+_cached_credential = None
+
+
+def _get_bearer() -> str:
+    """Get fresh bearer token for each request"""
+    global _cached_credential
+    return _cached_credential.get_token(FABRIC_SCOPE).token
+
+
+class FabricOpenAI(OpenAI):
+    def __init__(
+        self, base_url: str, api_version: str = "2024-05-01-preview", **kwargs: t.Any
+    ) -> None:
+        self.api_version = api_version
+        default_query = kwargs.pop("default_query", {})
+        default_query["api-version"] = self.api_version
+        super().__init__(
+            api_key="",
+            base_url=base_url,
+            default_query=default_query,
+            **kwargs,
+        )
+
+    def _prepare_options(self, options: FinalRequestOptions) -> None:
+        headers: dict[str, str | Omit] = (
+            {**options.headers} if is_given(options.headers) else {}
+        )
+        headers["Authorization"] = f"Bearer {_get_bearer()}"
+        headers.setdefault("Accept", "application/json")
+        headers.setdefault("ActivityId", str(uuid.uuid4()))
+        options.headers = headers
+        return super()._prepare_options(options)
 
 
 class DataAgent(OpenAI):
@@ -72,46 +107,28 @@ def ask_fabric_agent(
     poll_interval_sec: int = DEFAULT_POLL_INTERVAL_SEC,
     timeout_sec: int = DEFAULT_TIMEOUT_SEC,
 ) -> str:
-    """
-    Query a Microsoft Fabric Data Agent with a question.
-
-    This function sends a question to the specified Fabric Data Agent endpoint and
-    polls for the response, handling the complete request-response cycle.
-
-    :param endpoint: Fabric AI Assistant API endpoint URL
-    :param question: The question to ask the agent
-    :param credential: Optional Azure credential (reuses if provided, creates new if not)
-    :param poll_interval_sec: How often to check run status in seconds
-    :param timeout_sec: Maximum time to wait for response in seconds
-    :return: The agent's text response or error message
-    :raises: TimeoutError if polling exceeds timeout limit
-    """
     try:
         logger.info(f"🔍 Querying Fabric agent at endpoint: {endpoint}")
 
-        # Use provided credential or create new one
+        global _cached_credential
         if credential is None:
             logger.info("🔐 Creating new Azure credential...")
             credential = DefaultAzureCredential()
+            _cached_credential = credential
         else:
             logger.info("♻️  Reusing cached Azure credential")
-        
-        token = credential.get_token(FABRIC_SCOPE).token
+            _cached_credential = credential
 
-        # Create Data Agent client
-        client = DataAgent(base_url=endpoint, default_headers={"Authorization": f"Bearer {token}"})
+        client = FabricOpenAI(base_url=endpoint)
 
-        # Create assistant and thread
         assistant = client.beta.assistants.create(model="not-used")
         thread = client.beta.threads.create()
 
         try:
-            # Send message
             client.beta.threads.messages.create(
                 thread_id=thread.id, role="user", content=question
             )
 
-            # Create and poll run
             run = client.beta.threads.runs.create(
                 thread_id=thread.id, assistant_id=assistant.id
             )

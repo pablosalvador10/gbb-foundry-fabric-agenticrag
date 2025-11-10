@@ -9,12 +9,12 @@ azure_ai_foundry:
   endpoint_env: "AZURE_AI_PROJECT_ENDPOINT"
   model_deployment_env: "AZURE_AI_MODEL_DEPLOYMENT_NAME"
   # Agent ID for reusing existing agent (optional - will create new if not provided)
-  agent_id_env: asst_c5nsKgXECwvlBafUNpOFjuZO  # Set this in .env to reuse existing agent
+  agent_id_env: "REALTIME_ASSISTANT_AGENT_ID"  # Set this in .env to reuse existing agent
 
 # Bing Search Configuration
 bing_search:
   enabled: true
-  connection_id_env: "e202b23729cc401c9d133eb9f2c650f8"  # From Azure AI Foundry connected resources
+  connection_id_env: "BING_CONNECTION_ID"  # From Azure AI Foundry connected resources
   name: "Bing Grounding Search"
   description: "Search the web for current information using Bing"
 

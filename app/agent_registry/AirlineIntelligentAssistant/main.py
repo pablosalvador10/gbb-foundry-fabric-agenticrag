@@ -15,7 +15,7 @@ from utils.ml_logging import get_logger
 logger = get_logger("app.agent_registry.AirlineIntelligentAssistant.main")
 
 
-async def setup_airline_intelligent_assistant():
+async def setup_airline_intelligent_assistant(credential=None):
     """
     Initialize the Airline Intelligent Assistant main orchestrator.
 
@@ -26,6 +26,7 @@ async def setup_airline_intelligent_assistant():
     Both sub-agents are exposed as function tools using the .as_tool() pattern,
     allowing the main agent to automatically delegate queries to the appropriate sub-agent.
 
+    :param credential: Azure credential object to pass to sub-agents
     :return: Configured ChatAgent instance
     :raises: Exception if agent creation fails or required environment variables are missing
     """
@@ -48,7 +49,7 @@ async def setup_airline_intelligent_assistant():
         # 1. AirlineOpsContext - Already initialized as module-level variable
         logger.info("Using AirlineOpsContext agent for operational data...")
 
-        # 2. RealtimeAssistant - Create async
+        # 2. RealtimeAssistant - Create async (it creates its own AzureCliCredential internally)
         logger.info("Creating RealtimeAssistant agent for realtime capabilities...")
         realtime_agent = await setup_realtime_assistant()
 

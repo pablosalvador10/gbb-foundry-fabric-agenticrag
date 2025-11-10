@@ -51,13 +51,9 @@ def setup_environment() -> None:
             )
             st.stop()
 
-        # Initialize Azure authentication once for the entire session
         if "azure_credential" not in st.session_state:
             from azure.identity import InteractiveBrowserCredential
-            logger.info("🔐 Initializing Azure authentication (browser login)...")
-            logger.info("📢 A browser window will open for authentication...")
             st.session_state.azure_credential = InteractiveBrowserCredential()
-            logger.info("✅ Azure authentication initialized successfully")
 
         if not validate_configuration():
             logger.error("Missing required environment variables")
@@ -99,11 +95,15 @@ async def setup_agent() -> None:
         try:
             logger.info("🤖 Initializing Airline Intelligent Assistant...")
             
-            # Pass the cached credential to the agent modules
+            # Pass InteractiveBrowserCredential to Fabric agents only
+            # Foundry agents (RealtimeAssistant) create their own AzureCliCredential internally
             from app.agent_registry.AirlineOpsContext import main as ops_context_module
             ops_context_module.set_azure_credential(st.session_state.azure_credential)
             
-            agent = await setup_airline_intelligent_assistant()
+            # RealtimeAssistant will create its own AzureCliCredential (not passed)
+            agent = await setup_airline_intelligent_assistant(
+                credential=st.session_state.azure_credential
+            )
             st.session_state.agent = agent
             logger.info("✅ Airline Intelligent Assistant initialized successfully")
         except Exception as e:

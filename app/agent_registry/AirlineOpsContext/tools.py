@@ -5,8 +5,16 @@ from src.agents.dataagents.main import ask_fabric_agent
 from utils.ml_logging import get_logger
 
 logger = get_logger("src.agents.dataagents")
-AIRPORT_INFO_ENDPOINT = os.getenv("AIRPORT_INFO_ENDPOINT")
+_airport_info_endpoint = None
 _azure_credential = None
+
+
+def set_airport_endpoint(endpoint: str):
+    """Set the Fabric endpoint for airport info queries."""
+    global _airport_info_endpoint
+    _airport_info_endpoint = endpoint
+    logger.info(f"🌐 Fabric endpoint configured: {endpoint}")
+
 
 def set_azure_credential(credential):
     """Set the cached Azure credential for this module."""
@@ -42,7 +50,7 @@ def retrieve_operational_context(
         # Query the Fabric agent with the airport info endpoint
         # Use cached credential if available
         response = ask_fabric_agent(
-            endpoint=AIRPORT_INFO_ENDPOINT, 
+            endpoint=_airport_info_endpoint, 
             question=query,
             credential=_azure_credential
         )

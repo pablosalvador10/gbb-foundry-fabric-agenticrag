@@ -66,7 +66,6 @@ async def create_realtime_assistant() -> Tuple[ChatAgent, str, str, str]:
         logger.info("Initializing Azure clients")
         credential = AzureCliCredential()
         project_client = AIProjectClient(endpoint=endpoint, credential=credential)
-        agents_client = AgentsClient(endpoint=endpoint, credential=credential)
         
         # Step 1: Upload PDF file
         logger.info(f"Uploading {pdf_file_path.name} to Azure AI")
@@ -141,7 +140,7 @@ async def create_realtime_assistant() -> Tuple[ChatAgent, str, str, str]:
         # Step 5: Create ChatAgent wrapper
         logger.info("Creating ChatAgent wrapper")
         chat_client = AzureAIAgentClient(
-            agents_client=agents_client, 
+            project_client=project_client, 
             agent_id=agent_id
         )
         
@@ -174,7 +173,9 @@ async def create_realtime_assistant() -> Tuple[ChatAgent, str, str, str]:
         raise
 
 
-async def setup_realtime_assistant(agent_id: Optional[str] = None) -> ChatAgent:
+async def setup_realtime_assistant(
+    agent_id: Optional[str] = None,
+) -> ChatAgent:
     """
     Connect to EXISTING Realtime Assistant agent (RUNTIME USE).
     
@@ -183,6 +184,9 @@ async def setup_realtime_assistant(agent_id: Optional[str] = None) -> ChatAgent:
     
     The agent must already exist (created with create_realtime_assistant()).
     This is the FAST path for production runtime.
+    
+    IMPORTANT: Uses AzureCliCredential (not passed credential) because Foundry agents
+    require specific Azure CLI token scopes to execute function tools properly.
     
     :param agent_id: Azure AI agent ID. If not provided, reads from
                      REALTIME_ASSISTANT_AGENT_ID environment variable.
@@ -214,70 +218,35 @@ async def setup_realtime_assistant(agent_id: Optional[str] = None) -> ChatAgent:
         
         logger.info(f"Agent ID: {agent_id}")
         
-        # Initialize Azure clients
-        logger.info("Initializing Azure clients")
+        # Initialize Azure clients - ALWAYS use AzureCliCredential for Foundry agents
+        # This is critical: Foundry agents need Azure CLI scopes to execute function tools
+        logger.info("Creating AzureCliCredential for Foundry agent (required for function tool execution)")
         credential = AzureCliCredential()
-        agents_client = AgentsClient(endpoint=endpoint, credential=credential)
         
-        # Connect to existing agent
+        # Create AIProjectClient first (required for AzureAIAgentClient)
+        logger.info(f"Creating AIProjectClient with endpoint: {endpoint}")
+        from azure.ai.projects.aio import AIProjectClient
+        project_client = AIProjectClient(endpoint=endpoint, credential=credential)
+        
+        # Connect to existing agent using project_client
         logger.info(f"Connecting to agent: {agent_id}")
         chat_client = AzureAIAgentClient(
-            agents_client=agents_client,
+            project_client=project_client,
             agent_id=agent_id
         )
         
-        # Build tools list (for ChatAgent wrapper, not for remote agent)
-        all_tools = []
-        
-        # Bing Search
-        if config.get("bing_search", {}).get("enabled", False):
-            bing_connection_id = os.getenv(
-                config["bing_search"].get("connection_id_env", "BING_CONNECTION_ID")
-            )
-            if bing_connection_id:
-                bing_tool = HostedWebSearchTool(
-                    name=config["bing_search"].get("name", "Bing Grounding Search"),
-                    description=config["bing_search"].get(
-                        "description", "Search the web for current information"
-                    ),
-                    connection_id=bing_connection_id,
-                )
-                all_tools.append(bing_tool)
-        
-        # Code Interpreter
-        code_interpreter = HostedCodeInterpreterTool(
-            name="Python Code Interpreter",
-            description="Execute Python code for calculations, data analysis, and problem solving"
-        )
-        all_tools.append(code_interpreter)
-        
-        # File Search (if vector store ID available)
-        vector_store_id = os.getenv("FILE_SEARCH_VECTOR_STORE_ID")
-        if vector_store_id:
-            from agent_framework import HostedFileSearchTool
-            file_search_tool = HostedFileSearchTool(
-                vector_store_ids=[vector_store_id]
-            )
-            all_tools.append(file_search_tool)
-            logger.info(f"File Search enabled with vector store: {vector_store_id}")
-        
-        # Custom function tools
-        all_tools.append(get_weather)
-        all_tools.append(get_time)
-        
-        # Create ChatAgent wrapper
-        logger.info("Creating ChatAgent wrapper")
+        # Create ChatAgent wrapper with name and description (matching notebook pattern)
+        # Tools are already configured on the remote agent - don't define them here
+        logger.info("Creating ChatAgent wrapper for existing agent")
         agent = ChatAgent(
             chat_client=chat_client,
-            name=f"{name}Agent",
+            name=name,
             description=description,
-            instructions=instructions,
-            tools=all_tools,
-            user_approves_function_calls=False,
+            instructions=instructions,  # Local instructions combine with remote agent instructions
         )
         
         logger.info(f"Realtime Assistant '{name}' connected successfully")
-        logger.info(f"Tools available: {len(all_tools)}")
+        logger.info(f"Agent connected - tools are configured on the remote agent")
         
         return agent
         
