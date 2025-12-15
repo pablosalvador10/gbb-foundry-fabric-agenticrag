@@ -1,0 +1,41 @@
+# =============================================================================
+# Airline Ops Assistant - Docker Compose
+# =============================================================================
+# Run: docker-compose -f app/docker-compose.yaml up
+
+services:
+  airline-ops-assistant:
+    build:
+      context: ..
+      dockerfile: app/Dockerfile
+    container_name: airline-ops-assistant
+    ports:
+      - "${PORT:-8501}:8501"
+    env_file:
+      - ../.env
+    environment:
+      - PYTHONPATH=/app
+      - STREAMLIT_SERVER_PORT=8501
+      - STREAMLIT_SERVER_ADDRESS=0.0.0.0
+      - STREAMLIT_SERVER_HEADLESS=true
+    volumes:
+      # Uncomment for dev (live reload)
+      # - ../app:/app/app:ro
+      # - ../src:/app/src:ro
+      # - ../utils:/app/utils:ro
+      - app-data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  app-data:
+    driver: local
+
+networks:
+  default:
+    name: airline-ops-network

@@ -1,145 +1,138 @@
-PYTHON_INTERPRETER = python
-CONDA_ENV ?= azure-ai-agent-service-demo
-export PYTHONPATH=$(PWD):$PYTHONPATH;
+# =============================================================================
+# GBB Foundry Fabric AgenticRAG - Makefile
+# =============================================================================
 
-# Target for setting up pre-commit and pre-push hooks
-set_up_precommit_and_prepush:
-	pre-commit install -t pre-commit
-	pre-commit install -t pre-push
+# Configuration
+PYTHON := python
+CONDA_ENV := gbb-foundry-agenticrag
+APP_NAME := airline-ops-assistant
+DOCKER_IMAGE := $(APP_NAME)
+DOCKER_TAG := latest
+PORT := 8501
 
-# The 'check_code_quality' command runs a series of checks to ensure the quality of your code.
-check_code_quality:
-	# Running 'ruff' to automatically fix common Python code quality issues.
-	@pre-commit run ruff --all-files
+# Export PYTHONPATH for module resolution
+export PYTHONPATH := $(PWD):$(PYTHONPATH)
 
-	# Running 'black' to ensure consistent code formatting.
-	@pre-commit run black --all-files
+# Colors for output
+GREEN := \033[0;32m
+YELLOW := \033[0;33m
+RED := \033[0;31m
+NC := \033[0m
 
-	# Running 'isort' to sort and organize your imports.
-	@pre-commit run isort --all-files
+.PHONY: help install run dev test lint format clean docker-build docker-run docker-up docker-down create-agent
 
-	# # Running 'flake8' for linting.
-	@pre-commit run flake8 --all-files
+# Default target
+help:
+	@echo "$(GREEN)Available targets:$(NC)"
+	@echo ""
+	@echo "  $(YELLOW)Development:$(NC)"
+	@echo "    install        - Create conda environment and install dependencies"
+	@echo "    run            - Run the Streamlit application"
+	@echo "    dev            - Run app in development mode with auto-reload"
+	@echo "    create-agent   - Create RealtimeAssistant with file search (run once)"
+	@echo ""
+	@echo "  $(YELLOW)Code Quality:$(NC)"
+	@echo "    lint           - Run linting checks (ruff)"
+	@echo "    format         - Format code (black, isort)"
+	@echo "    test           - Run unit tests"
+	@echo ""
+	@echo "  $(YELLOW)Docker:$(NC)"
+	@echo "    docker-build   - Build Docker image"
+	@echo "    docker-run     - Run Docker container"
+	@echo "    docker-up      - Start with docker-compose"
+	@echo "    docker-down    - Stop docker-compose services"
+	@echo ""
+	@echo "  $(YELLOW)Cleanup:$(NC)"
+	@echo "    clean          - Remove cache files and build artifacts"
 
-	# Running 'mypy' for static type checking.
-	@pre-commit run mypy --all-files
+# =============================================================================
+# Development
+# =============================================================================
 
-	# Running 'check-yaml' to validate YAML files.
-	@pre-commit run check-yaml --all-files
+install:
+	@echo "$(GREEN)Creating conda environment...$(NC)"
+	conda env create -f environment.yaml || conda env update -f environment.yaml
+	@echo "$(GREEN)Done! Activate with: conda activate $(CONDA_ENV)$(NC)"
 
-	# Running 'end-of-file-fixer' to ensure files end with a newline.
-	@pre-commit run end-of-file-fixer --all-files
+run:
+	@echo "$(GREEN)Starting Airline Operations Assistant...$(NC)"
+	streamlit run app/main.py --server.port $(PORT)
 
-	# Running 'trailing-whitespace' to remove unnecessary whitespaces.
-	@pre-commit run trailing-whitespace --all-files
+dev:
+	@echo "$(GREEN)Starting in development mode...$(NC)"
+	streamlit run app/main.py --server.port $(PORT) --server.runOnSave true
 
-	# Running 'interrogate' to check docstring coverage in your Python code.
-	@pre-commit run interrogate --all-files
-
-	# Running 'bandit' to identify common security issues in your Python code.
-	bandit -c pyproject.toml -r .
-
-fix_code_quality:
-	# Automatic fixes for code quality (not doing in production only dev cycles)
-	black .
-	isort .
-	ruff --fix .
-
-# Targets for running tests
-run_unit_tests:
-	$(PYTHON_INTERPRETER) -m pytest --cov=my_module --cov-report=term-missing --cov-config=.coveragerc
-
-check_and_fix_code_quality: fix_code_quality check_code_quality
-check_and_fix_test_quality: run_unit_tests
-
-# Colored text
-RED = \033[0;31m
-NC = \033[0m # No Color
-GREEN = \033[0;32m
-
-# Helper function to print section titles
-define log_section
-	@printf "\n${GREEN}--> $(1)${NC}\n\n"
-endef
-
-create_conda_env:
-	@echo "Creating conda environment"
-	conda env create -f environment.yaml
-
-activate_conda_env:
-	@echo "Creating conda environment"
-	conda activate $(CONDA_ENV)
-
-remove_conda_env:
-	@echo "Removing conda environment"
-	conda env remove --name $(CONDA_ENV)
-
-# Target to run the Streamlit app locally
-run_streamlit:
-	streamlit run usecases/agenticrag/app.py
-
-# Target to run the Streamlit app locally
-run_app:
-	streamlit run app\main.py
-
-run_pylint:
-	@echo "Running linter"
-	find . -type f -name "*.py" ! -path "./tests/*" | xargs pylint -disable=logging-fstring-interpolation > utils/pylint_report/pylint_report.txt
-
-# Target to create the RealtimeAssistant agent with file search (run once offline)
-create_agent:
-	@echo "Creating RealtimeAssistant agent with file search capability..."
+create-agent:
+	@echo "$(GREEN)Creating RealtimeAssistant agent with file search capability...$(NC)"
 	@echo "This will upload airport_operations.pdf and create a vector store in Azure AI Foundry"
 	@echo ""
-	$(PYTHON_INTERPRETER) -m app.agent_registry.RealtimeAssistant.create_agent
+	$(PYTHON) -m app.agent_registry.RealtimeAssistant.create_agent
 	@echo ""
-	@echo "Done! Copy the printed IDs and add them to your .env file"
+	@echo "$(GREEN)Done! Copy the printed IDs and add them to your .env file$(NC)"
 
+# =============================================================================
+# Code Quality
+# =============================================================================
 
-## Deployment App
+lint:
+	@echo "$(GREEN)Running linting checks...$(NC)"
+	$(PYTHON) -m ruff check app/ src/ utils/
 
-# Use .ONESHELL to run all commands in a single shell instance
-.ONESHELL:
+format:
+	@echo "$(GREEN)Formatting code...$(NC)"
+	$(PYTHON) -m black app/ src/ utils/
+	$(PYTHON) -m isort app/ src/ utils/
+	$(PYTHON) -m ruff check app/ src/ utils/ --fix
 
-.PHONY: all
-all: build run
+test:
+	@echo "$(GREEN)Running tests...$(NC)"
+	$(PYTHON) -m pytest tests/ -v --cov=app --cov-report=term-missing
 
+# =============================================================================
+# Docker
+# =============================================================================
 
-.PHONY: build
-# Build the Docker image for the app using Azure Container Registry
-build:
-	@bash devops/container/benchmarking_app/deployapp.sh build_and_push_container
+docker-build:
+	@echo "$(GREEN)Building Docker image...$(NC)"
+	docker build -t $(DOCKER_IMAGE):$(DOCKER_TAG) -f app/Dockerfile .
 
+docker-run:
+	@echo "$(GREEN)Running Docker container...$(NC)"
+	docker run --rm -p $(PORT):$(PORT) --env-file .env $(DOCKER_IMAGE):$(DOCKER_TAG)
 
-.PHONY: run
-# Run the Docker container locally, mapping port 8501
-run:
-	docker run -p 8501:8501 my_streamlit_app
+docker-up:
+	@echo "$(GREEN)Starting services with docker-compose...$(NC)"
+	docker-compose -f app/docker-compose.yaml up -d
 
-.PHONY: login-acr
+docker-down:
+	@echo "$(GREEN)Stopping docker-compose services...$(NC)"
+	docker-compose -f app/docker-compose.yaml down
 
-login-acr:
-	@echo "Logging in to Azure..."
-	az login
-	@echo "Logging in to Azure Container Registry..."
-	az acr login --name containerregistrygbbai
+docker-logs:
+	docker-compose -f app/docker-compose.yaml logs -f
 
+# =============================================================================
+# Conda Environment Management
+# =============================================================================
 
-# Target to create a container app in Azure, depending on setup-env to load .env variables
-create-container-app: setup-env
-	az containerapp create -n doc-indexer -g $$(AZURE_RESOURCE_GROUP) --environment $$(AZURE_CONTAINER_ENVIRONMENT_NAME) \
-	--image $$(CONTAINER_REGISTRY_NAME).azurecr.io/$$(IMAGENAME):$$(IMAGETAG) \
-	--cpu $$(CPUs) --memory $$(RAM) \
-	--env-vars "AZURE_OPENAI_KEY=$$(AZURE_OPENAI_KEY)" \
-		"AZURE_AOAI_CHAT_MODEL_NAME_DEPLOYMENT_ID=$$(AZURE_AOAI_CHAT_MODEL_NAME_DEPLOYMENT_ID)" \
-		"AZURE_OPENAI_API_VERSION=$$(AZURE_OPENAI_API_VERSION)" \
-		"AZURE_OPENAI_API_ENDPOINT=$$(AZURE_OPENAI_API_ENDPOINT)" \
-	--registry-server $$(CONTAINER_REGISTRY_NAME).azurecr.io \
-	--registry-identity system \
-	--system-assigned \
-	--min-replicas $$(MIN_REPLICAS) --max-replicas $(MAX_REPLICAS) \
-	--scale-rule-http-concurrency $$(SCALE_CONCURRENCY) \
-	--ingress external \
-	--target-port $$(PORT); \
-	az role assignment create --role "Contributor" --assignee `az containerapp show -n doc-indexer -g $$(AZURE_RESOURCE_GROUP) -o tsv --query identity.principalId` --resource-group $$(AZURE_RESOURCE_GROUP); \
-	az role assignment create --role "Storage Blob Data Contributor" --assignee `az containerapp show -n doc-indexer -g $$(AZURE_RESOURCE_GROUP) -o tsv --query identity.principalId` --resource-group $$(AZURE_RESOURCE_GROUP)
+conda-create:
+	conda env create -f environment.yaml
+
+conda-update:
+	conda env update -f environment.yaml --prune
+
+conda-remove:
+	conda env remove --name $(CONDA_ENV)
+
+# =============================================================================
+# Cleanup
+# =============================================================================
+
+clean:
+	@echo "$(GREEN)Cleaning up...$(NC)"
+	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name ".ruff_cache" -exec rm -rf {} + 2>/dev/null || true
+	find . -type f -name "*.pyc" -delete 2>/dev/null || true
+	find . -type f -name ".DS_Store" -delete 2>/dev/null || true
+	@echo "$(GREEN)Done!$(NC)"

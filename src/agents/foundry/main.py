@@ -5,11 +5,13 @@ This module provides utilities to create and manage Azure AI Foundry agents,
 handling agent creation, ID persistence, and agent reuse patterns.
 """
 
-from typing import Optional, List, Callable
+from typing import Callable, List, Optional
+
 from agent_framework import ChatAgent
 from agent_framework.azure import AzureAIAgentClient
 from azure.ai.projects import AIProjectClient
 from azure.identity import AzureCliCredential
+
 from utils.ml_logging import get_logger
 
 logger = get_logger("src.agents.foundry.main")

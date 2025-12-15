@@ -12,11 +12,12 @@ import os
 import sys
 
 # Add project root to path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..")))
 
 # Load environment variables
 try:
     import dotenv
+
     dotenv.load_dotenv(".env", override=True)
     print("Environment variables loaded from .env file")
 except ImportError:
@@ -31,22 +32,22 @@ from app.agent_registry.RealtimeAssistant.main import (
 async def create_agent():
     """
     OFFLINE SETUP: Run this ONCE to create the agent.
-    
+
     Creates:
     - Uploads airport_operations.pdf
     - Creates vector store
     - Creates Azure AI agent with all tools
     - Returns IDs to save in .env
-    
+
     Returns:
         Tuple of (agent, agent_id, vector_store_id, file_id)
     """
     print("=" * 80)
     print("CREATING REALTIME ASSISTANT AGENT")
     print("=" * 80)
-    
+
     agent, agent_id, vector_store_id, file_id = await create_realtime_assistant()
-    
+
     print("\n" + "=" * 80)
     print("SUCCESS - Agent created")
     print("=" * 80)
@@ -60,36 +61,36 @@ async def create_agent():
     print(f"FILE_SEARCH_VECTOR_STORE_ID={vector_store_id}")
     print(f"AIRLINE_OPS_FILE_ID={file_id}")
     print("=" * 80)
-    
+
     return agent, agent_id, vector_store_id, file_id
 
 
 async def test_agent(agent_id: str):
     """
     Test the agent with sample queries.
-    
+
     Args:
         agent_id: The Azure AI agent ID
     """
     print("\n" + "=" * 80)
     print("TESTING AGENT")
     print("=" * 80)
-    
+
     agent = await setup_realtime_assistant(agent_id=agent_id)
-    
+
     test_queries = [
         "What's the weather in New York?",
         "What time is it in UTC?",
         "Search for recent airport delays news",
     ]
-    
+
     for query in test_queries:
         print(f"\nQuery: {query}")
         print("-" * 40)
         result = await agent.run(query)
         print(f"Response: {result.text}")
         print()
-    
+
     print("=" * 80)
     print("TEST COMPLETE")
     print("=" * 80)
@@ -98,12 +99,12 @@ async def test_agent(agent_id: str):
 async def main():
     """
     Main entry point.
-    
+
     Uncomment the appropriate function based on what you need:
     - create_agent(): First-time setup (run once offline)
     - test_agent(): Test existing agent (requires agent_id in .env)
     """
-    
+
     print("\n" + "=" * 80)
     print("PREREQUISITES CHECK")
     print("=" * 80)
@@ -119,12 +120,12 @@ async def main():
     print("   - AZURE_AI_PROJECT_ENDPOINT")
     print("   - REALTIME_ASSISTANT_CONFIG")
     print("=" * 80)
-    
+
     # OPTION 1: Create new agent (run once offline)
     # Uncomment to create agent:
     try:
         agent, agent_id, vector_store_id, file_id = await create_agent()
-    except Exception as e:
+    except Exception:
         print("\n" + "=" * 80)
         print("ERROR - TROUBLESHOOTING GUIDE")
         print("=" * 80)
@@ -142,7 +143,7 @@ async def main():
         print("   Then use setup_realtime_assistant() with existing agent_id")
         print("=" * 80)
         raise
-    
+
     # OPTION 2: Test existing agent (requires agent_id)
     # Uncomment and set agent_id to test:
     # agent_id = "YOUR_AGENT_ID_HERE"

@@ -1,8 +1,8 @@
-from utils.ml_logging import get_logger
-from src.agents.azure_openai.main import setup_aoai_agent
-from agent_registry.config_loader import load_agent_config
-from app.agent_registry.AirlineOpsContext.tools import retrieve_operational_context
 from app.agent_registry.AirlineOpsContext import tools as ops_tools
+from app.agent_registry.AirlineOpsContext.tools import retrieve_operational_context
+from app.agent_registry.config_loader import load_agent_config
+from src.agents.azure_openai.main import setup_aoai_agent
+from utils.ml_logging import get_logger
 
 logger = get_logger("agent_registry.azure_openai.airline_ops_context_agent")
 
@@ -13,13 +13,14 @@ logger = get_logger("agent_registry.azure_openai.airline_ops_context_agent")
 # Global variable to cache Azure credential (set from main app)
 _azure_credential = None
 
+
 def set_azure_credential(credential):
     """
     Set the cached Azure credential to be used by this agent.
-    
+
     This allows the main app to pass a pre-authenticated credential
     to avoid repeated authentication prompts.
-    
+
     Args:
         credential: Azure credential object (e.g., InteractiveBrowserCredential)
     """
@@ -28,6 +29,7 @@ def set_azure_credential(credential):
     ops_tools.set_azure_credential(credential)
     ops_tools.set_airport_endpoint(AIRPORT_INFO_ENDPOINT)
     logger.info("Azure credential set for AirlineOpsContext agent and tools")
+
 
 # ===============================
 # LOAD DYNAMIC CONFIGURATION

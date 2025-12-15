@@ -6,10 +6,11 @@ This agent coordinates between operational data retrieval and realtime assistanc
 """
 
 import asyncio
-from src.agents.azure_openai.main import setup_aoai_agent
-from app.agent_registry.config_loader import load_agent_config
+
 from app.agent_registry.AirlineOpsContext.main import airline_ops_context_agent
+from app.agent_registry.config_loader import load_agent_config
 from app.agent_registry.RealtimeAssistant.main import setup_realtime_assistant
+from src.agents.azure_openai.main import setup_aoai_agent
 from utils.ml_logging import get_logger
 
 logger = get_logger("app.agent_registry.AirlineIntelligentAssistant.main")
@@ -107,7 +108,7 @@ async def setup_airline_intelligent_assistant(credential=None):
 async def main():
     """
     Example usage of the Airline Intelligent Assistant with thread persistence.
-    
+
     Thread management enables conversation memory across multiple queries,
     allowing the agent to maintain context and reference previous interactions.
     """

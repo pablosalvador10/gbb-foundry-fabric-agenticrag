@@ -1,6 +1,7 @@
-import os
 from typing import Annotated
+
 from pydantic import Field
+
 from src.agents.dataagents.main import ask_fabric_agent
 from utils.ml_logging import get_logger
 
@@ -29,7 +30,7 @@ def retrieve_operational_context(
         Field(
             description="Operational query about flights, baggage, routes, airports, or SLAs"
         ),
-    ]
+    ],
 ) -> str:
     """
     Retrieve trusted operational context from Microsoft Fabric data sources.
@@ -50,9 +51,9 @@ def retrieve_operational_context(
         # Query the Fabric agent with the airport info endpoint
         # Use cached credential if available
         response = ask_fabric_agent(
-            endpoint=_airport_info_endpoint, 
+            endpoint=_airport_info_endpoint,
             question=query,
-            credential=_azure_credential
+            credential=_azure_credential,
         )
 
         logger.info("✅ Operational context retrieved successfully from Fabric")

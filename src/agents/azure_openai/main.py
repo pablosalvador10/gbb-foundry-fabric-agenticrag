@@ -1,6 +1,6 @@
-from typing import Optional
 from agent_framework import ChatAgent
 from agent_framework.azure import AzureOpenAIChatClient
+
 from utils.ml_logging import get_logger
 
 logger = get_logger("agent_registry.azure_openai.main")

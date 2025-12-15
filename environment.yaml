@@ -1,4 +1,4 @@
-name: azure-ai-agent-service-demo
+name: gbb-foundry-agenticrag
 channels:
   - conda-forge
   - defaults

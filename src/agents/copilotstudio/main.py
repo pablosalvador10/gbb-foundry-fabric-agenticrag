@@ -8,31 +8,11 @@ are handled in the azure_openai.fabric module instead.
 """
 
 import os
-import asyncio
-from typing import Annotated, Awaitable, Callable
-
-from pydantic import Field
-
-# Microsoft Agent Framework for Copilot Studio integration
-from agent_framework import (
-    ChatAgent,
-    WorkflowBuilder,
-    MagenticBuilder,
-    MagenticAgentDeltaEvent,
-    MagenticAgentMessageEvent,
-    MagenticFinalResultEvent,
-    MagenticOrchestratorMessageEvent,
-    WorkflowOutputEvent,
-)
-
-from agent_framework.microsoft import CopilotStudioAgent
-from agent_framework.azure import AzureAIAgentClient
-from azure.ai.projects.aio import AIProjectClient
-from azure.identity.aio import AzureCliCredential
 
 # Configure logging
 import sys
-import os
+
+# Microsoft Agent Framework for Copilot Studio integration
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 from utils.ml_logging import get_logger

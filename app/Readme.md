@@ -1,252 +1,114 @@
-# Multi-Agent Architecture - Airline Operations Assistant
+# Airline Ops Assistant - How the Agents Work
 
-## 🎯 Architecture Overview
+## Overview
 
-This system uses a **hierarchical agent architecture** where a main orchestrator delegates work to specialized sub-agents using the `.as_tool()` pattern.
+This uses a hierarchical pattern: one main agent delegates to specialized sub-agents using `.as_tool()`.
 
 ```
 ┌─────────────────────────────────────────────┐
-│   AirlineIntelligentAssistant (Main)        │
-│   - Entry point for all user queries        │
-│   - Coordinates between sub-agents          │
-│   - Azure OpenAI based                      │
+│   AirlineIntelligentAssistant (Orchestrator)│
+│   - Routes queries to the right sub-agent   │
 └──────────────┬──────────────────────────────┘
                │
        ┌───────┴───────┐
-       │               │
        ▼               ▼
 ┌──────────────┐  ┌──────────────────────┐
 │AirlineOps    │  │RealtimeAssistant     │
-│Context       │  │(Azure Foundry)       │
+│Context       │  │(Foundry)             │
 │              │  │                      │
 │- Fabric Data │  │- Bing Search         │
 │- Flights     │  │- File Search         │
-│- Baggage     │  │- Weather (Function)  │
-│- Routes      │  │- Time (Function)     │
-│- Airports    │  │                      │
-│- SLA Metrics │  │                      │
+│- Baggage     │  │- Weather             │
+│- Routes      │  │- Time                │
 └──────────────┘  └──────────────────────┘
 ```
 
-## 📁 Project Structure
+## Files
 
 ```
 app/agent_registry/
-├── AirlineIntelligentAssistant/    # Main orchestrator
-│   ├── __init__.py
-│   ├── conf.yaml                   # Main agent config
-│   └── main.py                     # Creates agent with sub-agents as tools
+├── AirlineIntelligentAssistant/
+│   ├── conf.yaml      # Config
+│   └── main.py        # Setup with sub-agents as tools
 │
-├── AirlineOpsContext/              # Operational data sub-agent
-│   ├── __init__.py
-│   ├── conf.yaml                   # Config with Fabric endpoints
-│   └── main.py                     # Azure OpenAI + Fabric retrieval
+├── AirlineOpsContext/
+│   ├── conf.yaml      # Fabric endpoint config
+│   └── main.py        # Queries Fabric
 │
-└── RealtimeAssistant/              # Realtime capabilities sub-agent
-    ├── __init__.py
-    ├── conf.yaml                   # Config for Foundry agent
-    ├── main.py                     # Azure Foundry agent setup
-    └── tools.py                    # Custom functions (weather, time)
+└── RealtimeAssistant/
+    ├── conf.yaml      # Foundry config
+    ├── create_agent.py # Run once to create the agent
+    ├── main.py        # Agent setup
+    └── tools.py       # Weather, time functions
 ```
 
-## 🔧 Agent Details
+## The Agents
 
-### 1. AirlineIntelligentAssistant (Main Orchestrator)
+**AirlineIntelligentAssistant** - Main orchestrator (Azure OpenAI). Figures out which sub-agent to call.
 
-**Type**: Azure OpenAI Agent  
-**Role**: Entry point and coordinator  
-**Location**: `app/agent_registry/AirlineIntelligentAssistant/`
+**AirlineOpsContext** - Queries Microsoft Fabric for operational data (flights, baggage, routes, SLAs).
 
-**Capabilities**:
-- Receives all user queries
-- Automatically routes to appropriate sub-agent
-- Can call multiple sub-agents if needed
-- Synthesizes responses
+**RealtimeAssistant** - Azure AI Foundry agent with Bing search, file search, weather, and time tools.
 
-**Configuration**:
-```yaml
-name: "AirlineIntelligentAssistant"
-azure_openai:
-  endpoint: "${AZURE_OPENAI_API_ENDPOINT}"
-  api_key: "${AZURE_OPENAI_API_KEY}"
-  deployment: "${AZURE_OPENAI_DEPLOYMENT_NAME}"
-```
+## The `.as_tool()` Pattern
 
-**Usage**:
-```python
-from app.agent_registry.AirlineIntelligentAssistant.main import setup_airline_intelligent_assistant
-
-agent = await setup_airline_intelligent_assistant()
-result = await agent.run("What flights are delayed at ORD?")
-```
-
-### 2. AirlineOpsContext (Operational Data)
-
-**Type**: Azure OpenAI Agent with Fabric Integration  
-**Role**: Retrieve operational data from Microsoft Fabric  
-**Location**: `app/agent_registry/AirlineOpsContext/`
-
-**Capabilities**:
-- Flight schedules, delays, cancellations
-- Baggage tracking and performance
-- Route information
-- Airport operations
-- SLA metrics
-
-**Tool**: `retrieve_operational_context(query)`  
-**Exposed as**: `AirlineOpsContext` tool to main agent
-
-**Configuration**:
-```yaml
-name: "AirlineOpsContext"
-azure_openai: { ... }
-fabric_endpoints:
-  airport_info: "${FABRIC_AIRPORT_INFO_ENDPOINT}"
-tools:
-  - retrieve_operational_context
-```
-
-### 3. RealtimeAssistant (Realtime Capabilities)
-
-**Type**: Azure AI Foundry Agent  
-**Role**: Provide realtime information and search  
-**Location**: `app/agent_registry/RealtimeAssistant/`
-
-**Capabilities**:
-- **Bing Grounding Search**: Current events, web search
-- **File Search**: Document retrieval from vector stores
-- **Weather**: Get weather for any location (function tool)
-- **Time**: Get current UTC time (function tool)
-
-**Tools**: 
-- `HostedWebSearchTool` (Bing)
-- `HostedFileSearchTool` (Documents)
-- `get_weather(location)` (Function)
-- `get_time()` (Function)
-
-**Exposed as**: `RealtimeAssistant` tool to main agent
-
-**Configuration**:
-```yaml
-name: "RealtimeAssistant"
-azure_ai_foundry:
-  endpoint: "${AZURE_AI_PROJECT_ENDPOINT}"
-  model_deployment: "${AZURE_AI_MODEL_DEPLOYMENT_NAME}"
-  agent_id: "${REALTIME_ASSISTANT_AGENT_ID}"  # Optional - reuse existing
-bing_search:
-  enabled: true
-  connection_id: "${BING_CONNECTION_ID}"
-file_search:
-  enabled: true
-  vector_store_id: "${FILE_SEARCH_VECTOR_STORE_ID}"
-tools:
-  - get_weather
-  - get_time
-```
-
-## 🔄 How It Works: The .as_tool() Pattern
-
-The main orchestrator uses the `.as_tool()` pattern to convert sub-agents into callable tools:
+You can turn any agent into a tool for another agent:
 
 ```python
-# 1. Initialize sub-agents
-ops_context_agent = airline_ops_context_agent  # Already created
+ops_agent = await setup_airline_ops_context_agent()
 realtime_agent = await setup_realtime_assistant()
 
-# 2. Convert to tools
-ops_tool = ops_context_agent.as_tool(
+# Convert to tools
+ops_tool = ops_agent.as_tool(
     name="AirlineOpsContext",
-    description="Query operational data from Microsoft Fabric...",
-    arg_name="query",
-    arg_description="The operational question..."
+    description="Query Fabric for operational data",
+    arg_name="query"
 )
 
 realtime_tool = realtime_agent.as_tool(
-    name="RealtimeAssistant",
-    description="Access real-time information...",
-    arg_name="query",
-    arg_description="The query for web search, weather..."
+    name="RealtimeAssistant", 
+    description="Web search, weather, time",
+    arg_name="query"
 )
 
-# 3. Create main agent with sub-agents as tools
-main_agent = AzureOpenAIChatClient(credential=credential).create_agent(
+# Main agent uses them as tools
+orchestrator = ChatAgent(
     name="AirlineIntelligentAssistant",
-    instructions=instructions,
     tools=[ops_tool, realtime_tool]
 )
 ```
 
-## 🚀 Query Flow Example
+## Example Flow
 
-**User Query**: "What's the weather in New York and are there any delays at JFK?"
+**User**: "What's the weather in NYC and any delays at JFK?"
 
-1. **User** → `AirlineIntelligentAssistant`
-2. **Main Agent** analyzes query and determines:
-   - Weather query → needs `RealtimeAssistant`
-   - Delays query → needs `AirlineOpsContext`
-3. **Main Agent** calls both sub-agents:
-   - `RealtimeAssistant.get_weather("New York")`
-   - `AirlineOpsContext.retrieve_operational_context("delays at JFK")`
-4. **Main Agent** synthesizes responses
-5. **User** receives comprehensive answer
+1. Query hits `AirlineIntelligentAssistant`
+2. Orchestrator decides it needs both sub-agents
+3. Calls `RealtimeAssistant` for weather
+4. Calls `AirlineOpsContext` for delays
+5. Combines responses and returns
 
-## 🔑 Environment Variables Required
+## Env Vars
+
+Check `.env.example`. The key ones:
 
 ```bash
-# Main Orchestrator
-AIRLINE_INTELLIGENT_ASSISTANT_CONFIG=./app/agent_registry/AirlineIntelligentAssistant/conf.yaml
+# Azure OpenAI
 AZURE_OPENAI_API_ENDPOINT=https://...
 AZURE_OPENAI_API_KEY=...
-AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4
+AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4o
 
-# Operational Data Agent
-AIRLINE_OPS_CONTEXT_CONFIG=./app/agent_registry/AirlineOpsContext/conf.yaml
-FABRIC_AIRPORT_INFO_ENDPOINT=https://...
-
-# Realtime Assistant (Foundry)
-REALTIME_ASSISTANT_CONFIG=./app/agent_registry/RealtimeAssistant/conf.yaml
+# Foundry
 AZURE_AI_PROJECT_ENDPOINT=https://...
-AZURE_AI_MODEL_DEPLOYMENT_NAME=gpt-4
 BING_CONNECTION_ID=your-bing-connection-id
-REALTIME_ASSISTANT_AGENT_ID=asst_... # Optional - for reuse
-FILE_SEARCH_VECTOR_STORE_ID=vs_...  # Optional
+
+# Fabric
+FABRIC_CONNECTION_NAME=your-fabric-connection
 ```
 
-## ✨ Key Benefits
+## Adding a New Agent
 
-1. **Automatic Routing**: Framework handles delegation, no manual routing logic needed
-2. **Composable**: Easy to add new sub-agents as tools
-3. **Clean Separation**: Each agent has clear responsibilities
-4. **Reusable**: Sub-agents work independently or as tools
-5. **Scalable**: Add more capabilities by adding more sub-agents
-6. **Dynamic Configuration**: All agents configured via YAML
-7. **Agent Persistence**: Foundry agents can be reused via agent_id
-
-## 🔧 Adding New Sub-Agents
-
-To add a new sub-agent:
-
-1. Create directory: `app/agent_registry/YourAgent/`
-2. Add `conf.yaml` with configuration
-3. Add `main.py` with setup function returning `ChatAgent`
-4. In main orchestrator, import and convert to tool:
-   ```python
-   new_agent = await setup_your_agent()
-   new_tool = new_agent.as_tool(name="YourAgent", description="...")
-   # Add to tools list
-   ```
-
-## 📝 Migration Notes
-
-**Old Pattern**: Manual routing with keyword scoring  
-**New Pattern**: Automatic delegation via `.as_tool()`
-
-**Removed**:
-- `IntelligentOrchestrator` with manual routing logic
-- `route_query()` function with keyword scoring
-- Complex routing decisions in code
-
-**Added**:
-- `AirlineIntelligentAssistant` main orchestrator
-- `.as_tool()` pattern for sub-agent integration
-- Framework-handled automatic routing
+1. Create `app/agent_registry/YourAgent/`
+2. Add `conf.yaml` and `main.py`
+3. Return a `ChatAgent` from your setup function
+4. Add it as a tool in the orchestrator

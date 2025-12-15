@@ -1,12 +1,7 @@
-"""
-Configuration and Environment Settings for Airline Operations Assistant.
-
-This module centralizes all environment variables, constants, and configuration parameters
-for the Airline Intelligent Assistant multi-agent system.
-"""
+"""Configuration settings for the Airline Operations Assistant."""
 
 import os
-from typing import List
+
 from utils.ml_logging import get_logger
 
 logger = get_logger("app.settings")
@@ -15,61 +10,38 @@ try:
     import dotenv
 
     dotenv.load_dotenv(".env", override=True)
-    logger.info("Environment variables loaded from .env file")
+    logger.debug("Loaded .env file")
 except ImportError:
-    logger.warning(
-        "python-dotenv not available, using system environment variables only"
-    )
+    logger.debug("python-dotenv not available, using system env vars")
 
-# ---- AZURE AI PROJECT CONFIGURATION ----
-AZURE_AI_PROJECT_ENDPOINT: str = os.environ.get("AZURE_AI_PROJECT_ENDPOINT", "")
+# Azure AI Foundry
+AZURE_AI_PROJECT_ENDPOINT = os.getenv("AZURE_AI_PROJECT_ENDPOINT", "")
 
-# ---- AZURE OPENAI CONFIGURATION ----
-AZURE_OPENAI_API_ENDPOINT: str = os.getenv("AZURE_OPENAI_API_ENDPOINT", "")
-AZURE_OPENAI_API_KEY: str = os.getenv("AZURE_OPENAI_API_KEY", "")
-AZURE_OPENAI_DEPLOYMENT_NAME: str = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME", "")
+# Azure OpenAI
+AZURE_OPENAI_API_ENDPOINT = os.getenv("AZURE_OPENAI_API_ENDPOINT", "")
+AZURE_OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY", "")
+AZURE_OPENAI_DEPLOYMENT_NAME = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME", "")
 
-# ---- UI CONFIGURATION ----
-PAGE_TITLE: str = "Airline Operations Assistant"
-APP_TITLE: str = "Airline Operations Decision Assistant"
-APP_SUBTITLE: str = "Powered by Azure AI Multi-Agent Framework"
-CHAT_CONTAINER_HEIGHT: int = 500
-CHAT_INPUT_PLACEHOLDER: str = "Ask about flights, weather, operations, or real-time data..."
+# UI
+PAGE_TITLE = "Airline Operations Assistant"
+APP_TITLE = "Airline Operations Assistant"
+APP_SUBTITLE = "Powered by Azure AI Foundry + Fabric"
+CHAT_CONTAINER_HEIGHT = 500
+CHAT_INPUT_PLACEHOLDER = "Ask about flights, weather, operations..."
+
+REQUIRED_VARS = [
+    "AZURE_AI_PROJECT_ENDPOINT",
+    "AZURE_OPENAI_API_ENDPOINT",
+    "AZURE_OPENAI_API_KEY",
+    "AZURE_OPENAI_DEPLOYMENT_NAME",
+]
 
 
 def validate_configuration() -> bool:
-    """
-    Validate that all required environment variables are set.
-
-    This function checks for the presence of all critical environment variables
-    required for the multi-agent system to function properly.
-
-    :return: True if all required variables are present, False otherwise
-    :raises: None - function handles missing variables gracefully
-    """
-    required_vars: List[str] = [
-        "AZURE_AI_PROJECT_ENDPOINT",
-        "AZURE_OPENAI_API_ENDPOINT",
-        "AZURE_OPENAI_API_KEY",
-        "AZURE_OPENAI_DEPLOYMENT_NAME",
-    ]
-
-    try:
-        missing_vars: List[str] = []
-        for var in required_vars:
-            if not os.getenv(var):
-                missing_vars.append(var)
-
-        if missing_vars:
-            logger.error(
-                f"Missing required environment variables: {', '.join(missing_vars)}"
-            )
-            return False
-
-        logger.info("All required environment variables validated successfully")
-        return True
-
-    except Exception as e:
-        logger.error(f"Error during configuration validation: {str(e)}")
+    """Check that required environment variables are set."""
+    missing = [var for var in REQUIRED_VARS if not os.getenv(var)]
+    if missing:
+        logger.error(f"Missing required environment variables: {', '.join(missing)}")
         return False
-
+    logger.debug("Configuration validated successfully")
+    return True

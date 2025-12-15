@@ -1,0 +1,55 @@
+# =============================================================================
+# Docker Ignore
+# =============================================================================
+
+# Git
+.git
+.gitignore
+
+# Python cache
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache
+.mypy_cache
+.ruff_cache
+*.egg-info
+dist
+build
+
+# Env files (secrets!)
+.env
+.venv
+env
+venv
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+tests
+htmlcov
+.coverage
+
+# Docs
+docs
+*.md
+!README.md
+
+# Notebooks and labs
+labs
+*.ipynb
+
+# Development files
+Makefile
+environment.yaml
+requirements-*.txt
+!requirements.txt

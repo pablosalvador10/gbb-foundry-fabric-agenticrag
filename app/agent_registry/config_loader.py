@@ -6,9 +6,11 @@ This module provides utilities to load agent configurations from YAML files
 """
 
 import os
-import yaml
+from typing import Any, Dict, Optional
+
 import requests
-from typing import Dict, Any, List, Callable, Optional
+import yaml
+
 from utils.ml_logging import get_logger
 
 logger = get_logger("agent_registry.config_loader")
@@ -71,9 +73,11 @@ def validate_agent_config(config: Dict[str, Any]) -> bool:
     # Validate either azure_openai OR azure_ai_foundry section exists
     has_azure_openai = "azure_openai" in config
     has_azure_foundry = "azure_ai_foundry" in config
-    
+
     if not has_azure_openai and not has_azure_foundry:
-        raise ValueError("Agent config must have either 'azure_openai' or 'azure_ai_foundry' section")
+        raise ValueError(
+            "Agent config must have either 'azure_openai' or 'azure_ai_foundry' section"
+        )
 
     # Validate azure_openai section if present
     if has_azure_openai:
@@ -100,13 +104,14 @@ def validate_agent_config(config: Dict[str, Any]) -> bool:
 def resolve_env_variables(config: Dict[str, Any]) -> Dict[str, Any]:
     """
     Resolve environment variable references in configuration.
-    
+
     Recursively resolves any field with '_env' suffix by reading the environment
     variable and creating a new field without the suffix.
 
     :param config: Agent configuration with env variable references
     :return: Configuration with resolved values
     """
+
     def resolve_dict(d: Dict[str, Any]) -> Dict[str, Any]:
         """Recursively resolve _env suffixed fields in a dictionary."""
         resolved = {}
@@ -118,23 +123,23 @@ def resolve_env_variables(config: Dict[str, Any]) -> Dict[str, Any]:
                 # Resolve environment variable reference
                 env_var_name = value
                 env_value = os.getenv(env_var_name)
-                
+
                 # Keep the _env field for reference
                 resolved[key] = value
-                
+
                 # Add resolved field without _env suffix
                 field_name = key[:-4]  # Remove '_env' suffix
                 resolved[field_name] = env_value
-                
+
                 # Log missing environment variables
                 if not env_value:
                     logger.warning(f"Environment variable not set: {env_var_name}")
             else:
                 # Keep other fields as-is
                 resolved[key] = value
-        
+
         return resolved
-    
+
     resolved_config = resolve_dict(config)
 
     return resolved_config
