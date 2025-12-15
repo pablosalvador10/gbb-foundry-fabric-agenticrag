@@ -229,7 +229,9 @@ async def setup_realtime_assistant(
         # Connect to existing agent using project_client
         logger.info(f"Connecting to agent: {agent_id}")
         chat_client = AzureAIAgentClient(
-            project_client=project_client, agent_id=agent_id
+            project_client=project_client,
+            agent_id=agent_id,
+            credential=credential,
         )
 
         # Create ChatAgent wrapper with name and description (matching notebook pattern)

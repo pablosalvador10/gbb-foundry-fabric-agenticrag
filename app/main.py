@@ -8,12 +8,18 @@ import streamlit as st
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
-from settings import (APP_SUBTITLE, APP_TITLE, CHAT_CONTAINER_HEIGHT,
-                      CHAT_INPUT_PLACEHOLDER, PAGE_TITLE,
-                      validate_configuration)
+from settings import (
+    APP_SUBTITLE,
+    APP_TITLE,
+    CHAT_CONTAINER_HEIGHT,
+    CHAT_INPUT_PLACEHOLDER,
+    PAGE_TITLE,
+    validate_configuration,
+)
 
-from app.agent_registry.AirlineIntelligentAssistant.main import \
-    setup_airline_intelligent_assistant
+from app.agent_registry.AirlineIntelligentAssistant.main import (
+    setup_airline_intelligent_assistant,
+)
 from utils.ml_logging import get_logger
 
 logger = get_logger("app.main")
@@ -48,8 +54,7 @@ async def setup_agent():
         try:
             logger.info("Initializing agent...")
 
-            from app.agent_registry.AirlineOpsContext import \
-                main as ops_context_module
+            from app.agent_registry.AirlineOpsContext import main as ops_context_module
 
             ops_context_module.set_azure_credential(st.session_state.azure_credential)
 
@@ -65,18 +70,27 @@ async def setup_agent():
 
 async def process_query(query: str) -> str:
     """Process a user query and return the response."""
-    logger.debug(f"Processing query: {query[:50]}...")
+    logger.info("=" * 80)
+    logger.info("🚀 NEW QUERY RECEIVED")
+    logger.info(f"📋 Query: {query}")
+    logger.info("=" * 80)
 
     agent = st.session_state.get("agent")
     if not agent:
         raise RuntimeError("Agent not initialized")
 
     if st.session_state.conversation_thread is None:
+        logger.info("Creating new conversation thread")
         st.session_state.conversation_thread = agent.get_new_thread()
 
     try:
+        logger.info("🤖 Sending to orchestrator (AirlineIntelligentAssistant)...")
         result = await agent.run(query, thread=st.session_state.conversation_thread)
-        return result.text if hasattr(result, "text") else str(result)
+        response = result.text if hasattr(result, "text") else str(result)
+        logger.info("=" * 80)
+        logger.info(f"✅ RESPONSE COMPLETE ({len(response)} chars)")
+        logger.info("=" * 80)
+        return response
     except Exception as e:
         logger.error(f"Query failed: {e}")
         raise

@@ -55,9 +55,11 @@ async def setup_airline_intelligent_assistant(credential=None):
         realtime_agent = await setup_realtime_assistant()
 
         # Convert sub-agents to tools using .as_tool()
+        # Wrap with logging to track tool invocations
         logger.info("Converting sub-agents to function tools...")
 
-        ops_context_tool = airline_ops_context_agent.as_tool(
+        # Create wrapped tool for AirlineOpsContext with logging
+        ops_base_tool = airline_ops_context_agent.as_tool(
             name="AirlineOpsContext",
             description=(
                 "Query operational data from Microsoft Fabric including flights, baggage, "
@@ -67,7 +69,23 @@ async def setup_airline_intelligent_assistant(credential=None):
             arg_description="The operational question about flights, baggage, routes, airports, or SLAs",
         )
 
-        realtime_tool = realtime_agent.as_tool(
+        async def ops_context_tool_wrapper(query: str) -> str:
+            logger.info("=" * 80)
+            logger.info("🛫 TOOL INVOKED: AirlineOpsContext")
+            logger.info(f"📋 Query: {query}")
+            logger.info("=" * 80)
+            result = await ops_base_tool(query)
+            logger.info("✅ AirlineOpsContext completed")
+            return result
+
+        ops_context_tool_wrapper.__name__ = "AirlineOpsContext"
+        ops_context_tool_wrapper.__doc__ = (
+            "Query operational data from Microsoft Fabric including flights, baggage, "
+            "routes, airports, and SLA metrics. Use this for airline operational data queries."
+        )
+
+        # Create wrapped tool for RealtimeAssistant with logging
+        realtime_base_tool = realtime_agent.as_tool(
             name="RealtimeAssistant",
             description=(
                 "Access real-time information including web search (Bing), weather data, "
@@ -78,15 +96,31 @@ async def setup_airline_intelligent_assistant(credential=None):
             arg_description="The query for web search, weather, time, or document search",
         )
 
+        async def realtime_tool_wrapper(query: str) -> str:
+            logger.info("=" * 80)
+            logger.info("🌐 TOOL INVOKED: RealtimeAssistant")
+            logger.info(f"📋 Query: {query}")
+            logger.info("=" * 80)
+            result = await realtime_base_tool(query)
+            logger.info("✅ RealtimeAssistant completed")
+            return result
+
+        realtime_tool_wrapper.__name__ = "RealtimeAssistant"
+        realtime_tool_wrapper.__doc__ = (
+            "Access real-time information including web search (Bing), weather data, "
+            "current time, and document search. Use this for current events, weather, "
+            "time queries, or web searches."
+        )
+
         logger.info("Creating main orchestrator agent...")
 
-        # Create main orchestrator with sub-agents as tools
+        # Create main orchestrator with wrapped sub-agents as tools
         main_agent = setup_aoai_agent(
             name=name,
             endpoint=endpoint,
             api_key=api_key,
             deployment_name=deployment,
-            tools=[ops_context_tool, realtime_tool],
+            tools=[ops_context_tool_wrapper, realtime_tool_wrapper],
             instructions=instructions,
             description=description,
         )
